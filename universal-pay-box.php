@@ -3,7 +3,7 @@
  * Plugin Name: Universal Pay Box PRO
  * Plugin URI:  https://uaserver.pp.ua
  * Description: Автономна монетизація для WordPress без WooCommerce і платіжних API. Миттєвий PRO-статус при кліку на оплату (Конверт ПриватБанк / Монобанк), ручний контроль і блокування адміном, нагадування про закінчення тарифу.
- * Version:     1.2.0
+ * Version:     1.3.0
  * Author:      UAServer
  * Author URI:  https://uaserver.pp.ua
  * License:     GPLv2 or later
@@ -15,8 +15,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'UPB_VERSION', '1.2.0' );
-define( 'UPB_GITHUB', 'portallcomua/universal-pay-box' );
+define( 'UPB_VERSION', '1.3.0' );
+define( 'UPB_GITHUB', 'portallcomua/UA-Pay-Box' );
 define( 'UPB_FILE', __FILE__ );
 define( 'UPB_DIR', plugin_dir_path( __FILE__ ) );
 define( 'UPB_URL', plugin_dir_url( __FILE__ ) );
@@ -34,6 +34,7 @@ require_once UPB_DIR . 'includes/class-upb-updater.php';
 require_once UPB_DIR . 'includes/class-upb-ajax.php';
 require_once UPB_DIR . 'includes/class-upb-frontend.php';
 require_once UPB_DIR . 'includes/class-upb-rest.php';
+require_once UPB_DIR . 'includes/class-upb-freemius.php';
 require_once UPB_DIR . 'includes/functions.php';
 
 register_activation_hook( __FILE__, array( 'UPB_Installer', 'activate' ) );
@@ -45,6 +46,7 @@ add_action( 'plugins_loaded', function () {
 	UPB_Ajax::init();
 	UPB_Frontend::init();
 	UPB_Rest::init();
+	UPB_Freemius::init();
 	new UPB_Updater( UPB_FILE, UPB_GITHUB, UPB_VERSION );
 	if ( is_admin() ) {
 		require_once UPB_DIR . 'includes/class-upb-admin.php';
