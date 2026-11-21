@@ -1,0 +1,48 @@
+name: Validate and publish plugin release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up PHP 7.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4'
+          coverage: none
+
+      - name: Validate PHP syntax
+        run: |
+          set -e
+          find . -type f -name '*.php' -not -path './.git/*' -print0 | xargs -0 -n1 php -l
+
+      - name: Build release ZIP and publish if version is new
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VERSION="$(grep -m1 -E 'Version:[[:space:]]*[0-9]+\.[0-9]+\.[0-9]+' universal-pay-box.php | sed -E 's/.*Version:[[:space:]]*//')"
+          if [ -z "$VERSION" ]; then
+            echo "Could not read plugin version."
+            exit 1
+          fi
+          TAG="v$VERSION"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; no new release is needed."
+            exit 0
+          fi
+          mkdir -p dist/UA-Pay-Box
+          git archive HEAD | tar -x -C dist/UA-Pay-Box
+          (cd dist && zip -qr UA-Pay-Box.zip UA-Pay-Box)
+          gh release create "$TAG" dist/UA-Pay-Box.zip --title "UA Pay Box $VERSION" --generate-notes
