@@ -79,12 +79,14 @@ TPL;
 		$slug = ! empty( $svc['slug'] ) ? $svc['slug'] : 'project-' . (int) $svc['id'];
 		$fn   = 'upb_' . preg_replace( '/[^a-z0-9_]/', '_', strtolower( $slug ) );
 		$hub  = untrailingslashit( home_url() );
+		$checkout = str_replace( "'", "\\'", isset( $svc['freemius_checkout_url'] ) ? $svc['freemius_checkout_url'] : '' );
 		$tpl = <<<'TPL'
 /* UA Pay Box + Freemius: вставте у головний файл WordPress-плагіна.
  * Ліцензійний ключ користувач отримує від Freemius. Product Secret Key тут НЕ потрібен.
  * Збережіть введений ключ: update_option( '%FN%_license_key', $license_key );
  */
 if ( ! function_exists( '%FN%_is_pro' ) ) {
+	function %FN%_checkout_url() { return '%CHECKOUT%'; }
 	function %FN%_is_pro( $force = false ) {
 		$key = trim( (string) get_option( '%FN%_license_key', '' ) );
 		if ( '' === $key ) { return false; }
@@ -104,14 +106,14 @@ if ( ! function_exists( '%FN%_is_pro' ) ) {
 	}
 }
 TPL;
-		return str_replace( array( '%FN%', '%SLUG%', '%HUB%' ), array( $fn, $slug, $hub ), $tpl );
+		return str_replace( array( '%FN%', '%SLUG%', '%HUB%', '%CHECKOUT%' ), array( $fn, $slug, $hub, $checkout ), $tpl );
 	}
 
 	/** Android Kotlin: call from a background thread (network access is not allowed on the UI thread). */
 	public static function android_kotlin( array $svc ) {
 		$slug = ! empty( $svc['slug'] ) ? $svc['slug'] : 'project-' . (int) $svc['id'];
 		$hub  = untrailingslashit( home_url() );
-		return "/* AndroidManifest.xml: add <uses-permission android:name=\\"android.permission.INTERNET\\" /> */\n" .
+		return '/* AndroidManifest.xml: add <uses-permission android:name="android.permission.INTERNET" /> */' . "\n" .
 			"import org.json.JSONObject\nimport java.net.HttpURLConnection\nimport java.net.URL\nimport java.net.URLEncoder\n\n" .
 			"object PayBoxLicense {\n    fun isPro(licenseKey: String): Boolean {\n        val query = \"service=" . $slug . "&license_key=\" + URLEncoder.encode(licenseKey, \"UTF-8\")\n        val connection = (URL(\"" . $hub . "/wp-json/upb/v1/license/status?\" + query).openConnection() as HttpURLConnection)\n        return try {\n            connection.requestMethod = \"GET\"\n            connection.connectTimeout = 10000\n            connection.readTimeout = 10000\n            connection.inputStream.bufferedReader().use { JSONObject(it.readText()).optBoolean(\"valid\", false) }\n        } catch (e: Exception) { false } finally { connection.disconnect() }\n    }\n}\n";
 	}
@@ -121,7 +123,8 @@ TPL;
 		$slug = ! empty( $svc['slug'] ) ? $svc['slug'] : 'project-' . (int) $svc['id'];
 		$hub  = untrailingslashit( home_url() );
 		return "const PAYBOX_LICENSE_URL = " . wp_json_encode( $hub . '/wp-json/upb/v1/license/status' ) . ";\n" .
-			"const PAYBOX_SERVICE = " . wp_json_encode( $slug ) . ";\n\n" .
+			"const PAYBOX_SERVICE = " . wp_json_encode( $slug ) . ";\n" .
+			"const PAYBOX_CHECKOUT_URL = " . wp_json_encode( isset( $svc['freemius_checkout_url'] ) ? $svc['freemius_checkout_url'] : '' ) . ";\n\n" .
 			"async function checkPayBoxLicense(licenseKey) {\n" .
 			"  const url = new URL(PAYBOX_LICENSE_URL);\n" .
 			"  url.searchParams.set('service', PAYBOX_SERVICE);\n" .
