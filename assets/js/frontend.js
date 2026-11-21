@@ -19,6 +19,7 @@
 			els.copy = q('[data-upb-copy]', modal);
 			els.go   = q('[data-upb-go]', modal);
 			els.freemius = q('[data-upb-freemius]', modal);
+			els.envelope = q('[data-upb-envelope]', modal);
 			els.msg  = q('[data-upb-msg]', modal);
 			els.body = q('[data-upb-body]', modal);
 			els.copy.addEventListener('click', onCopy);
@@ -74,6 +75,8 @@
 		els.go.disabled = true;
 		els.go.hidden = !svc.url;
 		els.go.style.display = svc.url ? '' : 'none';
+		els.envelope.hidden = !svc.url;
+		els.envelope.style.display = svc.url ? '' : 'none';
 		els.go.textContent = 'Перейти до Конверта →';
 		els.freemius.hidden = !svc.checkoutUrl;
 		els.freemius.style.display = svc.checkoutUrl ? '' : 'none';
