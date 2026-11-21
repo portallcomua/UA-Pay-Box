@@ -135,7 +135,7 @@ class UPB_Frontend {
 				'idMode'   => ( isset( $svc['id_mode'] ) && 'domain' === $svc['id_mode'] ) ? 'domain' : 'login',
 				'daysLeft' => (int) $st['days_left'],
 				'url'      => $can_buy ? $svc['url'] : '',
-				'checkoutUrl' => $can_buy && ! empty( $svc['freemius_checkout_url'] ) ? $svc['freemius_checkout_url'] : '',
+				'checkoutUrl' => $can_buy && ! empty( $svc['freemius_checkout_url'] ) && ! empty( $svc['freemius_product_id'] ) && ! empty( $svc['freemius_plan_id'] ) && ! empty( $svc['freemius_secret_key'] ) ? $svc['freemius_checkout_url'] : '',
 			);
 		}
 
