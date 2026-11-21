@@ -87,6 +87,10 @@ TPL;
  */
 if ( ! function_exists( '%FN%_is_pro' ) ) {
 	function %FN%_checkout_url() { return '%CHECKOUT%'; }
+	function %FN%_set_license_key( $license_key ) {
+		update_option( '%FN%_license_key', sanitize_text_field( $license_key ), false );
+		delete_transient( '%FN%_license_status' );
+	}
 	function %FN%_is_pro( $force = false ) {
 		$key = trim( (string) get_option( '%FN%_license_key', '' ) );
 		if ( '' === $key ) { return false; }
@@ -113,9 +117,10 @@ TPL;
 	public static function android_kotlin( array $svc ) {
 		$slug = ! empty( $svc['slug'] ) ? $svc['slug'] : 'project-' . (int) $svc['id'];
 		$hub  = untrailingslashit( home_url() );
+		$checkout = wp_json_encode( isset( $svc['freemius_checkout_url'] ) ? $svc['freemius_checkout_url'] : '' );
 		return '/* AndroidManifest.xml: add <uses-permission android:name="android.permission.INTERNET" /> */' . "\n" .
 			"import org.json.JSONObject\nimport java.net.HttpURLConnection\nimport java.net.URL\nimport java.net.URLEncoder\n\n" .
-			"object PayBoxLicense {\n    fun isPro(licenseKey: String): Boolean {\n        val query = \"service=" . $slug . "&license_key=\" + URLEncoder.encode(licenseKey, \"UTF-8\")\n        val connection = (URL(\"" . $hub . "/wp-json/upb/v1/license/status?\" + query).openConnection() as HttpURLConnection)\n        return try {\n            connection.requestMethod = \"GET\"\n            connection.connectTimeout = 10000\n            connection.readTimeout = 10000\n            connection.inputStream.bufferedReader().use { JSONObject(it.readText()).optBoolean(\"valid\", false) }\n        } catch (e: Exception) { false } finally { connection.disconnect() }\n    }\n}\n";
+			"object PayBoxLicense {\n    const val CHECKOUT_URL = " . $checkout . "\n    fun isPro(licenseKey: String): Boolean {\n        val query = \"service=" . $slug . "&license_key=\" + URLEncoder.encode(licenseKey, \"UTF-8\")\n        val connection = (URL(\"" . $hub . "/wp-json/upb/v1/license/status?\" + query).openConnection() as HttpURLConnection)\n        return try {\n            connection.requestMethod = \"GET\"\n            connection.connectTimeout = 10000\n            connection.readTimeout = 10000\n            connection.inputStream.bufferedReader().use { JSONObject(it.readText()).optBoolean(\"valid\", false) }\n        } catch (e: Exception) { false } finally { connection.disconnect() }\n    }\n}\n";
 	}
 
 	/** Chrome extension JavaScript snippet. Store the key in chrome.storage, never in manifest/source. */
