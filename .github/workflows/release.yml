@@ -42,7 +42,7 @@ jobs:
             echo "Release $TAG already exists; no new release is needed."
             exit 0
           fi
-          mkdir -p dist/UA-Pay-Box
-          git archive HEAD | tar -x -C dist/UA-Pay-Box
-          (cd dist && zip -qr UA-Pay-Box.zip UA-Pay-Box)
+          mkdir -p dist/universal-pay-box
+          git archive HEAD | tar -x -C dist/universal-pay-box
+          (cd dist && zip -qr UA-Pay-Box.zip universal-pay-box)
           gh release create "$TAG" dist/UA-Pay-Box.zip --title "UA Pay Box $VERSION" --generate-notes
