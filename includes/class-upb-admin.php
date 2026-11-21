@@ -29,7 +29,8 @@ class UPB_Admin {
 		}
 		$missing = array();
 		foreach ( UPB_Services::all() as $s ) {
-			if ( ! empty( $s['enabled'] ) && empty( $s['url'] ) && empty( $s['freemius_checkout_url'] ) ) {
+			$freemius_ready = ! empty( $s['freemius_checkout_url'] ) && ! empty( $s['freemius_product_id'] ) && ! empty( $s['freemius_plan_id'] ) && ! empty( $s['freemius_secret_key'] );
+			if ( ! empty( $s['enabled'] ) && empty( $s['url'] ) && ! $freemius_ready ) {
 				$missing[] = esc_html( $s['name'] );
 			}
 		}
@@ -407,7 +408,7 @@ class UPB_Admin {
 				<textarea readonly rows="4" class="large-text code" onclick="this.select()"><?php echo esc_textarea( UPB_Snippet::html( $svc ) ); ?></textarea>
 				<h3>REST (Android, Chrome-розширення, інші сайти)</h3>
 				<textarea readonly rows="2" class="large-text code" onclick="this.select()"><?php echo esc_textarea( rest_url( 'upb/v1/check' ) . '?service=' . ( ! empty( $svc['slug'] ) ? $svc['slug'] : $id ) . '&username=LOGIN&api_key=' . UPB_Rest::api_key() ); ?></textarea>
-				<?php if ( ! empty( $svc['freemius_product_id'] ) && ! empty( $svc['freemius_secret_key'] ) ) : ?>
+				<?php if ( ! empty( $svc['freemius_checkout_url'] ) && ! empty( $svc['freemius_product_id'] ) && ! empty( $svc['freemius_plan_id'] ) && ! empty( $svc['freemius_secret_key'] ) ) : ?>
 					<hr>
 					<h2>🔐 Freemius — код перевірки ліцензії</h2>
 					<p>Ці фрагменти не містять Product Secret Key. Користувач вводить ліцензійний ключ, який отримав після купівлі у Freemius.</p>
@@ -420,7 +421,7 @@ class UPB_Admin {
 					<p><strong>REST URL:</strong> <code><?php echo esc_html( rest_url( 'upb/v1/license/status' ) ); ?></code></p>
 				<?php endif; ?>
 			<?php endif; ?>
-			<?php if ( $id && ! empty( $svc['freemius_product_id'] ) ) : ?>
+			<?php if ( $id && ! empty( $svc['freemius_product_id'] ) && ! empty( $svc['freemius_plan_id'] ) && ! empty( $svc['freemius_secret_key'] ) ) : ?>
 				<h3>Freemius Webhook URL</h3>
 				<p><input type="text" readonly class="large-text code" onclick="this.select()" value="<?php echo esc_attr( rest_url( 'upb/v1/freemius/webhook/' . (int) $id ) ); ?>"></p>
 				<p class="description">Додайте цей URL у Webhooks Freemius для подій ліцензій. Pay Box перевіряє підпис x-signature через Product Secret Key.</p>
@@ -439,7 +440,8 @@ class UPB_Admin {
 		if ( empty( $data['freemius_secret_key'] ) && $old && ! empty( $old['freemius_secret_key'] ) ) {
 			$data['freemius_secret_key'] = $old['freemius_secret_key'];
 		}
-		if ( '' === $data['name'] || ( '' === $data['url'] && '' === $data['freemius_checkout_url'] ) ) {
+		$freemius_ready = '' !== $data['freemius_checkout_url'] && '' !== $data['freemius_product_id'] && '' !== $data['freemius_plan_id'] && '' !== $data['freemius_secret_key'];
+		if ( '' === $data['name'] || ( '' === $data['url'] && ! $freemius_ready ) ) {
 			wp_safe_redirect( self::url( 'upb-services', $id ? array( 'action' => 'edit', 'id' => $id, 'upb_notice' => 'err_required' ) : array( 'action' => 'add', 'upb_notice' => 'err_required' ) ) );
 			exit;
 		}
