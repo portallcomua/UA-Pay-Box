@@ -28,7 +28,7 @@ Pay Box перевіряє заголовок `x-signature` як HMAC-SHA256 в�
 
 У налаштуваннях Freemius для продукту увімкніть показ License Keys покупцям (якщо він вимкнений). Після успішної покупки Freemius видає користувачу ліцензійний ключ. Згенерований Pay Box код перевіряє цей ключ на сервері:
 
-`GET /wp-json/upb/v1/license/status?service=SLUG&license_key=LICENSE_KEY`
+`POST /wp-json/upb/v1/license/status` with form fields `service` and `license_key`
 
 Відповідь містить `valid`, `status` та `expires`. Для Chrome Extension endpoint підтримує CORS без cookies/авторизації; сам ліцензійний ключ є обліковим секретом користувача.
 
@@ -50,7 +50,7 @@ Pay Box перевіряє заголовок `x-signature` як HMAC-SHA256 в�
 - `GET /wp-json/upb/v1/status?service=SLUG&domain=example.com` — статус PRO для доменного сценарію Конверта.
 - `POST /wp-json/upb/v1/activate` — миттєва активація для Конверта; адміністратор перевіряє оплату пізніше.
 - `POST /wp-json/upb/v1/freemius/webhook/SERVICE_ID` — підписаний webhook Freemius.
-- `GET /wp-json/upb/v1/license/status?service=SLUG&license_key=KEY` — перевірка Freemius-ліцензії.
+- `POST /wp-json/upb/v1/license/status` with form fields `service` and `license_key` — перевірка Freemius-ліцензії.
 - `GET /wp-json/upb/v1/check` — попередній endpoint перевірки WordPress-користувачів за API key.
 
 ## Оновлення
