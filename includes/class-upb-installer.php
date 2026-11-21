@@ -5,7 +5,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class UPB_Installer {
 
-	const DB_VERSION = '2';
+	const DB_VERSION = '3';
 
 	public static function table() {
 		global $wpdb;
@@ -81,5 +81,23 @@ class UPB_Installer {
 			UNIQUE KEY svc_domain (service_id,domain)
 		) {$charset};";
 		dbDelta( $sql2 );
+
+		$licenses = $wpdb->prefix . 'upb_licenses';
+		$sql3 = "CREATE TABLE {$licenses} (
+			id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			service_id BIGINT(20) UNSIGNED NOT NULL,
+			license_id VARCHAR(191) NOT NULL,
+			license_hash CHAR(64) NOT NULL DEFAULT '',
+			email VARCHAR(191) NOT NULL DEFAULT '',
+			status VARCHAR(20) NOT NULL DEFAULT 'active',
+			expires BIGINT(20) NOT NULL DEFAULT 0,
+			created_at DATETIME NOT NULL,
+			updated_at DATETIME NOT NULL,
+			PRIMARY KEY  (id),
+			UNIQUE KEY service_license (service_id,license_id),
+			KEY license_hash (license_hash),
+			KEY status (status)
+		) {$charset};";
+		dbDelta( $sql3 );
 	}
 }
