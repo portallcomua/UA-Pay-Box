@@ -87,7 +87,8 @@ class UPB_Freemius {
 		}
 
 		$product_id = (string) self::value( $data, 'plugin_id', self::value( $data, 'plugin.id', '' ) );
-		$plan_id    = (string) self::value( $data, 'plan_id', self::value( $data, 'plan.id', self::value( $data, 'license.plan_id', '' ) ) );
+		$event_data = isset( $data['data'] ) && is_array( $data['data'] ) ? $data['data'] : $data;
+		$plan_id    = (string) self::value( $event_data, 'plan_id', self::value( $event_data, 'plan.id', self::value( $event_data, 'license.plan_id', self::value( $data, 'plan_id', '' ) ) ) );
 		if ( ! empty( $service['freemius_product_id'] ) && $product_id !== (string) $service['freemius_product_id'] ) {
 			return new WP_REST_Response( array( 'message' => 'Product ID does not match this Pay Box service.' ), 403 );
 		}
@@ -95,20 +96,20 @@ class UPB_Freemius {
 			return new WP_REST_Response( array( 'message' => 'Plan ID does not match this Pay Box service.' ), 403 );
 		}
 
-		$event   = strtolower( (string) self::value( $data, 'event', self::value( $data, 'type', self::value( $data, 'action', $request->get_header( 'x-event' ) ) ) ) );
-		$license = isset( $data['license'] ) && is_array( $data['license'] ) ? $data['license'] : $data;
-		$license_id = (string) self::value( $license, 'id', self::value( $data, 'license_id', '' ) );
+		$event   = strtolower( (string) self::value( $data, 'type', self::value( $data, 'event.type', self::value( $data, 'action', $request->get_header( 'x-event' ) ) ) ) );
+		$license = isset( $event_data['license'] ) && is_array( $event_data['license'] ) ? $event_data['license'] : $event_data;
+		$license_id = (string) self::value( $license, 'id', self::value( $event_data, 'license_id', self::value( $data, 'license_id', '' ) ) );
 		if ( '' === $license_id ) {
 			return new WP_REST_Response( array( 'message' => 'License ID is missing.' ), 400 );
 		}
 
-		$revoked = ( false !== strpos( $event, 'cancel' ) || false !== strpos( $event, 'delete' ) || false !== strpos( $event, 'expir' ) || false !== strpos( $event, 'refund' ) || ! empty( $license['is_cancelled'] ) || ! empty( $license['is_deleted'] ) );
+		$revoked = ( false !== strpos( $event, 'cancel' ) || false !== strpos( $event, 'delete' ) || false !== strpos( $event, 'expir' ) || false !== strpos( $event, 'refund' ) || false !== strpos( $event, 'deactiv' ) || false !== strpos( $event, 'dispute.lost' ) || ! empty( $license['is_cancelled'] ) || ! empty( $license['is_deleted'] ) || ! empty( $license['is_block_features'] ) );
 		$expires = self::timestamp( self::value( $license, 'expiration', self::value( $license, 'expiration_date', self::value( $license, 'expires_at', 0 ) ) ) );
 		if ( $expires && $expires <= time() ) {
 			$revoked = true;
 		}
 		$key = (string) self::value( $license, 'secret_key', self::value( $license, 'license_key', self::value( $license, 'key', '' ) ) );
-		$email = sanitize_email( (string) self::value( $data, 'user.email', self::value( $license, 'email', '' ) ) );
+		$email = sanitize_email( (string) self::value( $data, 'user.email', self::value( $event_data, 'user.email', self::value( $event_data, 'email', self::value( $license, 'email', '' ) ) ) ) );
 		$status = $revoked ? 'revoked' : 'active';
 
 		global $wpdb;
