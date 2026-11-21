@@ -73,8 +73,10 @@
 		els.copy.classList.remove('is-copied');
 		els.go.disabled = true;
 		els.go.hidden = !svc.url;
+		els.go.style.display = svc.url ? '' : 'none';
 		els.go.textContent = 'Перейти до Конверта →';
 		els.freemius.hidden = !svc.checkoutUrl;
+		els.freemius.style.display = svc.checkoutUrl ? '' : 'none';
 		if (svc.checkoutUrl) { els.freemius.href = svc.checkoutUrl; }
 		els.msg.hidden = true;
 		els.body.hidden = false;
