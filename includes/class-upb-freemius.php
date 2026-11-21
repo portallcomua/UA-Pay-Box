@@ -103,7 +103,7 @@ class UPB_Freemius {
 			return new WP_REST_Response( array( 'message' => 'License ID is missing.' ), 400 );
 		}
 
-		$revoked = ( false !== strpos( $event, 'cancel' ) || false !== strpos( $event, 'delete' ) || false !== strpos( $event, 'expir' ) || false !== strpos( $event, 'refund' ) || false !== strpos( $event, 'deactiv' ) || false !== strpos( $event, 'dispute.lost' ) || ! empty( $license['is_cancelled'] ) || ! empty( $license['is_deleted'] ) || ! empty( $license['is_block_features'] ) );
+		$revoked = ( false !== strpos( $event, 'cancel' ) || false !== strpos( $event, 'delete' ) || false !== strpos( $event, 'expir' ) || false !== strpos( $event, 'refund' ) || false !== strpos( $event, 'deactiv' ) || false !== strpos( $event, 'dispute.lost' ) || ! empty( $license['is_cancelled'] ) || ! empty( $license['is_deleted'] ) );
 		$expires = self::timestamp( self::value( $license, 'expiration', self::value( $license, 'expiration_date', self::value( $license, 'expires_at', 0 ) ) ) );
 		if ( $expires && $expires <= time() ) {
 			$revoked = true;
