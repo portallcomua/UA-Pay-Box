@@ -29,13 +29,13 @@ class UPB_Admin {
 		}
 		$missing = array();
 		foreach ( UPB_Services::all() as $s ) {
-			if ( ! empty( $s['enabled'] ) && empty( $s['url'] ) ) {
+			if ( ! empty( $s['enabled'] ) && empty( $s['url'] ) && empty( $s['freemius_checkout_url'] ) ) {
 				$missing[] = esc_html( $s['name'] );
 			}
 		}
 		if ( $missing ) {
 			printf(
-				'<div class="notice notice-warning"><p><strong>UA Pay Box:</strong> вкажіть посилання на Конверт та вартість для: %s. <a href="%s">Відкрити послуги</a></p></div>',
+				'<div class="notice notice-warning"><p><strong>UA Pay Box:</strong> вкажіть посилання на Конверт або Freemius Checkout та вартість для: %s. <a href="%s">Відкрити послуги</a></p></div>',
 				implode( ', ', $missing ), // phpcs:ignore -- уже екрановано вище
 				esc_url( admin_url( 'admin.php?page=upb-services' ) )
 			);
@@ -83,7 +83,7 @@ class UPB_Admin {
 			'saved'         => array( 'updated', 'Послугу збережено.' ),
 			'deleted'       => array( 'updated', 'Послугу видалено.' ),
 			'settings'      => array( 'updated', 'Налаштування збережено.' ),
-			'err_required'  => array( 'error', 'Заповніть назву послуги та посилання на Конверт (https://…).' ),
+			'err_required'  => array( 'error', 'Заповніть назву послуги та хоча б одне посилання для оплати: Конверт або Freemius Checkout.' ),
 		);
 		$key = isset( $_GET['upb_notice'] ) ? sanitize_key( wp_unslash( $_GET['upb_notice'] ) ) : '';
 		if ( isset( $map[ $key ] ) ) {
@@ -337,9 +337,29 @@ class UPB_Admin {
 						<td><textarea id="upb-desc" name="svc[description]" rows="3" class="large-text"><?php echo esc_textarea( $v['description'] ); ?></textarea></td>
 					</tr>
 					<tr>
-						<th><label for="upb-url">Посилання на Конверт *</label></th>
-						<td><input id="upb-url" name="svc[url]" type="url" class="large-text" required value="<?php echo esc_attr( $v['url'] ); ?>" placeholder="https://www.privat24.ua/send/…">
-						<p class="description">Унікальний Конверт ПриватБанку або Монобанку. Відкривається в новій вкладці.</p></td>
+						<th><label for="upb-url">Посилання на Конверт</label></th>
+						<td><input id="upb-url" name="svc[url]" type="url" class="large-text" value="<?php echo esc_attr( $v['url'] ); ?>" placeholder="https://www.privat24.ua/send/…">
+						<p class="description">Необов'язково, якщо для цього проекту використовується Freemius. При переході до Конверта PRO активується одразу, як і раніше.</p></td>
+					</tr>
+					<tr>
+						<th colspan="2"><h2>Freemius Checkout (без SDK)</h2><p class="description">Платіж проходить у Freemius. Після підтвердження Freemius надсилає підписаний webhook до Pay Box, а ліцензія стає доступною для перевірки у WordPress, Android та Chrome.</p></th>
+					</tr>
+					<tr>
+						<th><label for="upb-fs-product">Freemius Product ID</label></th>
+						<td><input id="upb-fs-product" name="svc[freemius_product_id]" type="text" class="regular-text code" value="<?php echo esc_attr( $v['freemius_product_id'] ); ?>"></td>
+					</tr>
+					<tr>
+						<th><label for="upb-fs-plan">Freemius Plan ID</label></th>
+						<td><input id="upb-fs-plan" name="svc[freemius_plan_id]" type="text" class="regular-text code" value="<?php echo esc_attr( $v['freemius_plan_id'] ); ?>"></td>
+					</tr>
+					<tr>
+						<th><label for="upb-fs-checkout">Freemius Checkout URL</label></th>
+						<td><input id="upb-fs-checkout" name="svc[freemius_checkout_url]" type="url" class="large-text" value="<?php echo esc_attr( $v['freemius_checkout_url'] ); ?>" placeholder="https://checkout.freemius.com/..."></td>
+					</tr>
+					<tr>
+						<th><label for="upb-fs-secret">Freemius Product Secret Key</label></th>
+						<td><input id="upb-fs-secret" name="svc[freemius_secret_key]" type="password" class="large-text code" value="" autocomplete="new-password" placeholder="<?php echo ! empty( $v['freemius_secret_key'] ) ? 'Ключ збережено — залиште порожнім, щоб не змінювати' : 'Вставте Product Secret Key'; ?>">
+						<p class="description">Зберігається тільки на сервері Pay Box. Ніколи не потрапляє в код для плагінів або додатків.</p></td>
 					</tr>
 					<tr>
 						<th><label for="upb-days">Термін дії (днів)</label></th>
@@ -388,6 +408,11 @@ class UPB_Admin {
 				<h3>REST (Android, Chrome-розширення, інші сайти)</h3>
 				<textarea readonly rows="2" class="large-text code" onclick="this.select()"><?php echo esc_textarea( rest_url( 'upb/v1/check' ) . '?service=' . ( ! empty( $svc['slug'] ) ? $svc['slug'] : $id ) . '&username=LOGIN&api_key=' . UPB_Rest::api_key() ); ?></textarea>
 			<?php endif; ?>
+			<?php if ( $id && ! empty( $svc['freemius_product_id'] ) ) : ?>
+				<h3>Freemius Webhook URL</h3>
+				<p><input type="text" readonly class="large-text code" onclick="this.select()" value="<?php echo esc_attr( rest_url( 'upb/v1/freemius/webhook/' . (int) $id ) ); ?>"></p>
+				<p class="description">Додайте цей URL у Webhooks Freemius для подій ліцензій. Pay Box перевіряє підпис x-signature через Product Secret Key.</p>
+			<?php endif; ?>
 		</div>
 		<?php
 	}
@@ -398,7 +423,11 @@ class UPB_Admin {
 		check_admin_referer( 'upb_save_service_' . $id );
 
 		$data = UPB_Services::sanitize( isset( $_POST['svc'] ) && is_array( $_POST['svc'] ) ? $_POST['svc'] : array() );
-		if ( '' === $data['name'] || '' === $data['url'] ) {
+		$old = $id ? UPB_Services::get( $id ) : null;
+		if ( empty( $data['freemius_secret_key'] ) && $old && ! empty( $old['freemius_secret_key'] ) ) {
+			$data['freemius_secret_key'] = $old['freemius_secret_key'];
+		}
+		if ( '' === $data['name'] || ( '' === $data['url'] && '' === $data['freemius_checkout_url'] ) ) {
 			wp_safe_redirect( self::url( 'upb-services', $id ? array( 'action' => 'edit', 'id' => $id, 'upb_notice' => 'err_required' ) : array( 'action' => 'add', 'upb_notice' => 'err_required' ) ) );
 			exit;
 		}
