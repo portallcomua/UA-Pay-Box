@@ -135,6 +135,7 @@ class UPB_Frontend {
 				'idMode'   => ( isset( $svc['id_mode'] ) && 'domain' === $svc['id_mode'] ) ? 'domain' : 'login',
 				'daysLeft' => (int) $st['days_left'],
 				'url'      => $can_buy ? $svc['url'] : '',
+				'checkoutUrl' => $can_buy && ! empty( $svc['freemius_checkout_url'] ) ? $svc['freemius_checkout_url'] : '',
 			);
 		}
 
@@ -180,7 +181,8 @@ class UPB_Frontend {
 						Це необхідно для верифікації вашого платежу адміном. Платежі без вказаного <span data-upb-idword2>логіна</span> будуть заблоковані.
 					</p>
 					<p class="upb-modal__hint">PRO активується одразу. Якщо платіж не надійде — адмін вимкне доступ.</p>
-					<button type="button" class="upb-go" data-upb-go disabled>Перейти до оплати →</button>
+					<button type="button" class="upb-go" data-upb-go disabled>Перейти до Конверта →</button>
+					<a class="upb-go upb-go--freemius" data-upb-freemius href="#" target="_blank" rel="noopener noreferrer" hidden>Оплатити через Freemius →</a>
 				</div>
 			</div>
 		</div>
