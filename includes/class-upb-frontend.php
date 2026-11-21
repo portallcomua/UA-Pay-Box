@@ -171,6 +171,7 @@ class UPB_Frontend {
 
 				<div class="upb-modal__body" data-upb-body>
 					<div class="upb-modal__price" data-upb-price></div>
+					<div data-upb-envelope>
 					<p class="upb-modal__label" data-upb-idlabel>Ваш логін на сайті:</p>
 					<div class="upb-login-row">
 						<strong class="upb-login" data-upb-login></strong>
@@ -182,6 +183,7 @@ class UPB_Frontend {
 					</p>
 					<p class="upb-modal__hint">PRO активується одразу. Якщо платіж не надійде — адмін вимкне доступ.</p>
 					<button type="button" class="upb-go" data-upb-go disabled>Перейти до Конверта →</button>
+					</div>
 					<a class="upb-go upb-go--freemius" data-upb-freemius href="#" target="_blank" rel="noopener noreferrer" hidden>Оплатити через Freemius →</a>
 				</div>
 			</div>
