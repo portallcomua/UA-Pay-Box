@@ -18,6 +18,7 @@
 			els.idword2 = q('[data-upb-idword2]', modal);
 			els.copy = q('[data-upb-copy]', modal);
 			els.go   = q('[data-upb-go]', modal);
+			els.freemius = q('[data-upb-freemius]', modal);
 			els.msg  = q('[data-upb-msg]', modal);
 			els.body = q('[data-upb-body]', modal);
 			els.copy.addEventListener('click', onCopy);
@@ -71,7 +72,10 @@
 		els.copy.textContent = st.label;
 		els.copy.classList.remove('is-copied');
 		els.go.disabled = true;
-		els.go.textContent = 'Перейти до оплати →';
+		els.go.hidden = !svc.url;
+		els.go.textContent = 'Перейти до Конверта →';
+		els.freemius.hidden = !svc.checkoutUrl;
+		if (svc.checkoutUrl) { els.freemius.href = svc.checkoutUrl; }
 		els.msg.hidden = true;
 		els.body.hidden = false;
 
@@ -81,9 +85,9 @@
 		} else if (svc.state === 'active' || svc.state === 'unlimited') {
 			els.body.hidden = true;
 			showMsg('У вас уже активний тариф.', true);
-		} else if (!svc.url) {
+		} else if (!svc.url && !svc.checkoutUrl) {
 			els.body.hidden = true;
-			showMsg('Для цієї послуги не вказано посилання на оплату.');
+			showMsg('Для цієї послуги не налаштовано жодного способу оплати.');
 		}
 
 		modal.hidden = false;
@@ -184,7 +188,7 @@
 		if (w) { try { w.close(); } catch (e) { /* ok */ } }
 		st.busy = false;
 		els.go.disabled = false;
-		els.go.textContent = 'Перейти до оплати →';
+		els.go.textContent = 'Перейти до Конверта →';
 		els.body.hidden = true;
 		showMsg(message || 'Не вдалося активувати тариф. Спробуйте ще раз.');
 	}
