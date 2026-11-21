@@ -1,4 +1,4 @@
-# UA Pay Box 1.3.1
+# UA Pay Box 1.3.2
 
 Платіжний центр для WordPress-проєктів та зовнішніх застосунків. Підтримує два незалежні способи оплати: PrivatBank/Monobank «Конверт» і Freemius Checkout. Freemius SDK не використовується.
 
