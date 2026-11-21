@@ -98,8 +98,10 @@ if ( ! function_exists( '%FN%_is_pro' ) ) {
 		if ( ! $force && is_array( $cache ) && isset( $cache['checked'], $cache['valid'] ) && time() - (int) $cache['checked'] < 6 * HOUR_IN_SECONDS ) {
 			return (bool) $cache['valid'];
 		}
-		$url = add_query_arg( array( 'service' => '%SLUG%', 'license_key' => $key ), '%HUB%/wp-json/upb/v1/license/status' );
-		$r = wp_remote_get( $url, array( 'timeout' => 10 ) );
+		$r = wp_remote_post( '%HUB%/wp-json/upb/v1/license/status', array(
+			'timeout' => 10,
+			'body' => array( 'service' => '%SLUG%', 'license_key' => $key ),
+		) );
 		$valid = false;
 		if ( ! is_wp_error( $r ) && 200 === (int) wp_remote_retrieve_response_code( $r ) ) {
 			$data = json_decode( wp_remote_retrieve_body( $r ), true );
@@ -120,7 +122,7 @@ TPL;
 		$checkout = wp_json_encode( isset( $svc['freemius_checkout_url'] ) ? $svc['freemius_checkout_url'] : '' );
 		return '/* AndroidManifest.xml: add <uses-permission android:name="android.permission.INTERNET" /> */' . "\n" .
 			"import org.json.JSONObject\nimport java.net.HttpURLConnection\nimport java.net.URL\nimport java.net.URLEncoder\n\n" .
-			"object PayBoxLicense {\n    const val CHECKOUT_URL = " . $checkout . "\n    fun isPro(licenseKey: String): Boolean {\n        val query = \"service=" . $slug . "&license_key=\" + URLEncoder.encode(licenseKey, \"UTF-8\")\n        val connection = (URL(\"" . $hub . "/wp-json/upb/v1/license/status?\" + query).openConnection() as HttpURLConnection)\n        return try {\n            connection.requestMethod = \"GET\"\n            connection.connectTimeout = 10000\n            connection.readTimeout = 10000\n            connection.inputStream.bufferedReader().use { JSONObject(it.readText()).optBoolean(\"valid\", false) }\n        } catch (e: Exception) { false } finally { connection.disconnect() }\n    }\n}\n";
+			"object PayBoxLicense {\n    const val CHECKOUT_URL = " . $checkout . "\n    fun isPro(licenseKey: String): Boolean {\n        val query = \"service=" . $slug . "&license_key=\" + URLEncoder.encode(licenseKey, \"UTF-8\")\n        val connection = (URL(\"" . $hub . "/wp-json/upb/v1/license/status\").openConnection() as HttpURLConnection)\n        return try {\n            connection.requestMethod = \"POST\"\n            connection.doOutput = true\n            connection.setRequestProperty(\"Content-Type\", \"application/x-www-form-urlencoded; charset=UTF-8\")\n            connection.connectTimeout = 10000\n            connection.readTimeout = 10000\n            connection.outputStream.use { it.write(query.toByteArray(Charsets.UTF_8)) }\n            connection.inputStream.bufferedReader().use { JSONObject(it.readText()).optBoolean(\"valid\", false) }\n        } catch (e: Exception) { false } finally { connection.disconnect() }\n    }\n}\n";
 	}
 
 	/** Chrome extension JavaScript snippet. Store the key in chrome.storage, never in manifest/source. */
@@ -131,10 +133,8 @@ TPL;
 			"const PAYBOX_SERVICE = " . wp_json_encode( $slug ) . ";\n" .
 			"const PAYBOX_CHECKOUT_URL = " . wp_json_encode( isset( $svc['freemius_checkout_url'] ) ? $svc['freemius_checkout_url'] : '' ) . ";\n\n" .
 			"async function checkPayBoxLicense(licenseKey) {\n" .
-			"  const url = new URL(PAYBOX_LICENSE_URL);\n" .
-			"  url.searchParams.set('service', PAYBOX_SERVICE);\n" .
-			"  url.searchParams.set('license_key', licenseKey);\n" .
-			"  try { const response = await fetch(url.toString()); if (!response.ok) return false; const data = await response.json(); return data.valid === true; }\n" .
+			"  const body = new URLSearchParams({ service: PAYBOX_SERVICE, license_key: licenseKey });\n" .
+			"  try { const response = await fetch(PAYBOX_LICENSE_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body }); if (!response.ok) return false; const data = await response.json(); return data.valid === true; }\n" .
 			"  catch (error) { return false; }\n}\n";
 	}
 
