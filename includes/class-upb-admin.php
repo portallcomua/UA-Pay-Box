@@ -407,6 +407,18 @@ class UPB_Admin {
 				<textarea readonly rows="4" class="large-text code" onclick="this.select()"><?php echo esc_textarea( UPB_Snippet::html( $svc ) ); ?></textarea>
 				<h3>REST (Android, Chrome-розширення, інші сайти)</h3>
 				<textarea readonly rows="2" class="large-text code" onclick="this.select()"><?php echo esc_textarea( rest_url( 'upb/v1/check' ) . '?service=' . ( ! empty( $svc['slug'] ) ? $svc['slug'] : $id ) . '&username=LOGIN&api_key=' . UPB_Rest::api_key() ); ?></textarea>
+				<?php if ( ! empty( $svc['freemius_product_id'] ) && ! empty( $svc['freemius_secret_key'] ) ) : ?>
+					<hr>
+					<h2>🔐 Freemius — код перевірки ліцензії</h2>
+					<p>Ці фрагменти не містять Product Secret Key. Користувач вводить ліцензійний ключ, який отримав після купівлі у Freemius.</p>
+					<h3>WordPress / PHP</h3>
+					<textarea readonly rows="22" class="large-text code" onclick="this.select()"><?php echo esc_textarea( UPB_Snippet::freemius_php( $svc ) ); ?></textarea>
+					<h3>Android / Kotlin</h3>
+					<textarea readonly rows="18" class="large-text code" onclick="this.select()"><?php echo esc_textarea( UPB_Snippet::android_kotlin( $svc ) ); ?></textarea>
+					<h3>Chrome Extension / JavaScript</h3>
+					<textarea readonly rows="14" class="large-text code" onclick="this.select()"><?php echo esc_textarea( UPB_Snippet::chrome_js( $svc ) ); ?></textarea>
+					<p><strong>REST URL:</strong> <code><?php echo esc_html( rest_url( 'upb/v1/license/status' ) ); ?></code></p>
+				<?php endif; ?>
 			<?php endif; ?>
 			<?php if ( $id && ! empty( $svc['freemius_product_id'] ) ) : ?>
 				<h3>Freemius Webhook URL</h3>
