@@ -85,6 +85,7 @@ class UPB_Admin {
 			'deleted'       => array( 'updated', 'Послугу видалено.' ),
 			'settings'      => array( 'updated', 'Налаштування збережено.' ),
 			'err_required'  => array( 'error', 'Заповніть назву послуги та хоча б одне посилання для оплати: Конверт або Freemius Checkout.' ),
+			'save_failed'  => array( 'error', 'Помилка збереження послуги. Дані не підтверджені після запису в базу WordPress. Перевірте права бази даних або журнал помилок.' ),
 		);
 		$key = isset( $_GET['upb_notice'] ) ? sanitize_key( wp_unslash( $_GET['upb_notice'] ) ) : '';
 		if ( isset( $map[ $key ] ) ) {
@@ -435,21 +436,44 @@ class UPB_Admin {
 		$id = isset( $_POST['id'] ) ? absint( $_POST['id'] ) : 0;
 		check_admin_referer( 'upb_save_service_' . $id );
 
-		$data = UPB_Services::sanitize( isset( $_POST['svc'] ) && is_array( $_POST['svc'] ) ? $_POST['svc'] : array() );
+		$raw = isset( $_POST['svc'] ) && is_array( $_POST['svc'] ) ? wp_unslash( $_POST['svc'] ) : array();
 		$old = $id ? UPB_Services::get( $id ) : null;
-		if ( empty( $data['freemius_secret_key'] ) && $old && ! empty( $old['freemius_secret_key'] ) ) {
+		$data = UPB_Services::sanitize( $raw );
+
+		// Preserve existing values when a browser or proxy omits an unchanged field.
+		if ( $old ) {
+			$data = array_merge( UPB_Services::defaults(), $old, $data );
+		}
+		if ( '' === $data['freemius_secret_key'] && $old && ! empty( $old['freemius_secret_key'] ) ) {
 			$data['freemius_secret_key'] = $old['freemius_secret_key'];
 		}
+
 		$freemius_ready = '' !== $data['freemius_checkout_url'] && '' !== $data['freemius_product_id'] && '' !== $data['freemius_plan_id'] && '' !== $data['freemius_secret_key'];
 		if ( '' === $data['name'] || ( '' === $data['url'] && ! $freemius_ready ) ) {
 			wp_safe_redirect( self::url( 'upb-services', $id ? array( 'action' => 'edit', 'id' => $id, 'upb_notice' => 'err_required' ) : array( 'action' => 'add', 'upb_notice' => 'err_required' ) ) );
 			exit;
 		}
-		if ( $id && ! UPB_Services::get( $id ) ) {
+
+		if ( $id && ! $old ) {
 			$id = 0;
 		}
-		UPB_Services::save( $id, $data );
-		wp_safe_redirect( self::url( 'upb-services', array( 'upb_notice' => 'saved' ) ) );
+		$saved_id = UPB_Services::save( $id, $data );
+		$saved = UPB_Services::get( $saved_id );
+
+		// Verify that the critical Freemius fields survived the database round-trip.
+		$verified = is_array( $saved )
+			&& (string) $saved['freemius_product_id'] === (string) $data['freemius_product_id']
+			&& (string) $saved['freemius_plan_id'] === (string) $data['freemius_plan_id']
+			&& (string) $saved['freemius_checkout_url'] === (string) $data['freemius_checkout_url']
+			&& (string) $saved['freemius_secret_key'] === (string) $data['freemius_secret_key'];
+
+		if ( ! $verified ) {
+			wp_safe_redirect( self::url( 'upb-services', array( 'action' => 'edit', 'id' => $saved_id, 'upb_notice' => 'save_failed' ) ) );
+			exit;
+		}
+
+		// Return to the same service so the administrator can immediately confirm saved values.
+		wp_safe_redirect( self::url( 'upb-services', array( 'action' => 'edit', 'id' => $saved_id, 'upb_notice' => 'saved' ) ) );
 		exit;
 	}
 
