@@ -11,6 +11,17 @@ class UPB_Freemius {
 
 	public static function init() {
 		add_action( 'rest_api_init', array( __CLASS__, 'routes' ) );
+		add_filter( 'rest_pre_serve_request', array( __CLASS__, 'license_cors' ), 10, 4 );
+	}
+
+	/** Allow browser extensions to call the public license-status endpoint. */
+	public static function license_cors( $served, $result, $request, $server ) {
+		if ( '/upb/v1/license/status' === $request->get_route() ) {
+			header( 'Access-Control-Allow-Origin: *' );
+			header( 'Access-Control-Allow-Methods: GET, OPTIONS' );
+			header( 'Access-Control-Allow-Headers: Content-Type' );
+		}
+		return $served;
 	}
 
 	public static function routes() {
@@ -91,7 +102,7 @@ class UPB_Freemius {
 			return new WP_REST_Response( array( 'message' => 'License ID is missing.' ), 400 );
 		}
 
-		$revoked = ( false !== strpos( $event, 'cancel' ) || false !== strpos( $event, 'delete' ) || false !== strpos( $event, 'expir' ) || false !== strpos( $event, 'refund' ) );
+		$revoked = ( false !== strpos( $event, 'cancel' ) || false !== strpos( $event, 'delete' ) || false !== strpos( $event, 'expir' ) || false !== strpos( $event, 'refund' ) || ! empty( $license['is_cancelled'] ) || ! empty( $license['is_deleted'] ) );
 		$expires = self::timestamp( self::value( $license, 'expiration', self::value( $license, 'expiration_date', self::value( $license, 'expires_at', 0 ) ) ) );
 		if ( $expires && $expires <= time() ) {
 			$revoked = true;
@@ -106,12 +117,16 @@ class UPB_Freemius {
 		$record = array(
 			'service_id' => $service_id,
 			'license_id' => sanitize_text_field( $license_id ),
-			'license_hash' => $key ? hash_hmac( 'sha256', $key, wp_salt( 'auth' ) ) : '',
 			'email' => $email,
 			'status' => $status,
 			'expires' => $expires,
 			'updated_at' => current_time( 'mysql', true ),
 		);
+		if ( $key ) {
+			$record['license_hash'] = hash_hmac( 'sha256', $key, wp_salt( 'auth' ) );
+		} elseif ( ! $existing ) {
+			$record['license_hash'] = '';
+		}
 		if ( $existing ) {
 			$wpdb->update( $table, $record, array( 'id' => (int) $existing ) );
 		} else {
