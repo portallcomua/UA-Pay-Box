@@ -18,7 +18,7 @@ class UPB_Freemius {
 	public static function license_cors( $served, $result, $request, $server ) {
 		if ( '/upb/v1/license/status' === $request->get_route() ) {
 			header( 'Access-Control-Allow-Origin: *' );
-			header( 'Access-Control-Allow-Methods: GET, OPTIONS' );
+			header( 'Access-Control-Allow-Methods: GET, POST, OPTIONS' );
 			header( 'Access-Control-Allow-Headers: Content-Type' );
 		}
 		return $served;
@@ -31,7 +31,7 @@ class UPB_Freemius {
 			'callback'            => array( __CLASS__, 'webhook' ),
 		) );
 		register_rest_route( 'upb/v1', '/license/status', array(
-			'methods'             => 'GET',
+			'methods'             => array( 'GET', 'POST' ),
 			'permission_callback' => '__return_true',
 			'callback'            => array( __CLASS__, 'license_status' ),
 		) );
