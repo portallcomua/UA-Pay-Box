@@ -86,9 +86,67 @@ class UPB_Freemius {
 			return new WP_REST_Response( array( 'message' => 'Invalid JSON payload.' ), 400 );
 		}
 
-		$product_id = (string) self::value( $data, 'plugin_id', self::value( $data, 'plugin.id', '' ) );
-		$event_data = isset( $data['data'] ) && is_array( $data['data'] ) ? $data['data'] : $data;
-		$plan_id    = (string) self::value( $event_data, 'plan_id', self::value( $event_data, 'plan.id', self::value( $event_data, 'license.plan_id', self::value( $data, 'plan_id', '' ) ) ) );
+		/*
+		 * Freemius Event API: data may be an ID, an object, or an array.
+		 * Full related entities (License, User, Payment) are supplied in
+		 * the top-level "objects" map, keyed by type or entity ID.
+		 */
+		$event_data = isset( $data['data'] ) && is_array( $data['data'] ) ? $data['data'] : array();
+		$objects    = isset( $data['objects'] ) && is_array( $data['objects'] ) ? $data['objects'] : array();
+
+		$license = array();
+		if ( isset( $event_data['license'] ) && is_array( $event_data['license'] ) ) {
+			$license = $event_data['license'];
+		} elseif ( isset( $data['license'] ) && is_array( $data['license'] ) ) {
+			$license = $data['license'];
+		} elseif ( isset( $objects['license'] ) && is_array( $objects['license'] ) ) {
+			$license = $objects['license'];
+		} elseif ( isset( $event_data['secret_key'], $event_data['id'] ) ) {
+			$license = $event_data;
+		} else {
+			foreach ( $objects as $object ) {
+				if ( is_array( $object ) && ! empty( $object['id'] ) && ! empty( $object['secret_key'] ) ) {
+					$license = $object;
+					break;
+				}
+			}
+		}
+
+		$payment = array();
+		if ( isset( $event_data['payment'] ) && is_array( $event_data['payment'] ) ) {
+			$payment = $event_data['payment'];
+		} elseif ( isset( $objects['payment'] ) && is_array( $objects['payment'] ) ) {
+			$payment = $objects['payment'];
+		} else {
+			foreach ( $objects as $object ) {
+				if ( is_array( $object ) && isset( $object['license_id'] ) && isset( $object['plan_id'] ) ) {
+					$payment = $object;
+					break;
+				}
+			}
+		}
+
+		$user = array();
+		if ( isset( $event_data['user'] ) && is_array( $event_data['user'] ) ) {
+			$user = $event_data['user'];
+		} elseif ( isset( $objects['user'] ) && is_array( $objects['user'] ) ) {
+			$user = $objects['user'];
+		} else {
+			foreach ( $objects as $object ) {
+				if ( is_array( $object ) && ! empty( $object['email'] ) ) {
+					$user = $object;
+					break;
+				}
+			}
+		}
+
+		$product_id = (string) self::value( $data, 'plugin_id', self::value( $license, 'plugin_id', '' ) );
+		$plan_id    = (string) self::value(
+			$license,
+			'plan_id',
+			self::value( $event_data, 'plan_id', self::value( $payment, 'plan_id', self::value( $data, 'plan_id', '' ) ) )
+		);
+
 		if ( ! empty( $service['freemius_product_id'] ) && $product_id !== (string) $service['freemius_product_id'] ) {
 			return new WP_REST_Response( array( 'message' => 'Product ID does not match this Pay Box service.' ), 403 );
 		}
@@ -96,38 +154,62 @@ class UPB_Freemius {
 			return new WP_REST_Response( array( 'message' => 'Plan ID does not match this Pay Box service.' ), 403 );
 		}
 
-		$event   = strtolower( (string) self::value( $data, 'type', self::value( $data, 'event.type', self::value( $data, 'action', $request->get_header( 'x-event' ) ) ) ) );
-		$license = isset( $event_data['license'] ) && is_array( $event_data['license'] ) ? $event_data['license'] : $event_data;
-		$license_id = (string) self::value( $license, 'id', self::value( $event_data, 'license_id', self::value( $data, 'license_id', '' ) ) );
+		$event = strtolower( (string) self::value( $data, 'type', self::value( $data, 'event.type', self::value( $data, 'action', $request->get_header( 'x-event' ) ) ) ) );
+
+		$license_id = (string) self::value(
+			$license,
+			'id',
+			self::value( $event_data, 'license_id', self::value( $payment, 'license_id', self::value( $data, 'license_id', '' ) ) )
+		);
 		if ( '' === $license_id ) {
-			return new WP_REST_Response( array( 'message' => 'License ID is missing.' ), 400 );
+			return new WP_REST_Response( array( 'message' => 'License ID is missing from the Freemius event.' ), 400 );
 		}
 
-		$revoked = ( false !== strpos( $event, 'cancel' ) || false !== strpos( $event, 'delete' ) || false !== strpos( $event, 'expir' ) || false !== strpos( $event, 'refund' ) || false !== strpos( $event, 'deactiv' ) || false !== strpos( $event, 'dispute.lost' ) || ! empty( $license['is_cancelled'] ) || ! empty( $license['is_deleted'] ) );
+		$revoked = (
+			false !== strpos( $event, 'cancel' ) ||
+			false !== strpos( $event, 'delete' ) ||
+			false !== strpos( $event, 'expir' ) ||
+			false !== strpos( $event, 'refund' ) ||
+			false !== strpos( $event, 'deactiv' ) ||
+			false !== strpos( $event, 'dispute.lost' ) ||
+			! empty( $license['is_cancelled'] ) ||
+			! empty( $license['is_deleted'] )
+		);
+
 		$expires = self::timestamp( self::value( $license, 'expiration', self::value( $license, 'expiration_date', self::value( $license, 'expires_at', 0 ) ) ) );
 		if ( $expires && $expires <= time() ) {
 			$revoked = true;
 		}
+
 		$key = (string) self::value( $license, 'secret_key', self::value( $license, 'license_key', self::value( $license, 'key', '' ) ) );
-		$email = sanitize_email( (string) self::value( $data, 'user.email', self::value( $event_data, 'user.email', self::value( $event_data, 'email', self::value( $license, 'email', '' ) ) ) ) );
+		$email = sanitize_email(
+			(string) self::value(
+				$user,
+				'email',
+				self::value( $data, 'user.email', self::value( $event_data, 'email', self::value( $license, 'email', '' ) ) )
+			)
+		);
 		$status = $revoked ? 'revoked' : 'active';
 
 		global $wpdb;
-		$table = self::license_table();
+		$table    = self::license_table();
 		$existing = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$table} WHERE service_id=%d AND license_id=%s", $service_id, $license_id ) );
+
 		$record = array(
 			'service_id' => $service_id,
 			'license_id' => sanitize_text_field( $license_id ),
-			'email' => $email,
-			'status' => $status,
-			'expires' => $expires,
+			'email'      => $email,
+			'status'     => $status,
+			'expires'    => $expires,
 			'updated_at' => current_time( 'mysql', true ),
 		);
-		if ( $key ) {
+
+		if ( '' !== $key ) {
 			$record['license_hash'] = hash_hmac( 'sha256', $key, wp_salt( 'auth' ) );
 		} elseif ( ! $existing ) {
 			$record['license_hash'] = '';
 		}
+
 		if ( $existing ) {
 			$wpdb->update( $table, $record, array( 'id' => (int) $existing ) );
 		} else {
@@ -135,7 +217,15 @@ class UPB_Freemius {
 			$wpdb->insert( $table, $record );
 		}
 
-		return new WP_REST_Response( array( 'received' => true, 'license_status' => $status ), 200 );
+		return new WP_REST_Response(
+			array(
+				'received'       => true,
+				'license_status' => $status,
+				'license_id'     => sanitize_text_field( $license_id ),
+				'lifetime'       => 0 === $expires,
+			),
+			200
+		);
 	}
 
 	/** Public status check: the license key itself is the credential. */
