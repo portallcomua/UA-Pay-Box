@@ -251,4 +251,61 @@ class UPB_Freemius {
 			'expires' => $row && (int) $row->expires ? (int) $row->expires : 0,
 		), 200 );
 	}
+
+	/** Build the standard hosted checkout URL from the configured product and plan. */
+	public static function checkout_url( $service ) {
+		if ( ! empty( $service['freemius_checkout_url'] ) ) {
+			return esc_url_raw( $service['freemius_checkout_url'] );
+		}
+		if ( ! empty( $service['freemius_product_id'] ) && ! empty( $service['freemius_plan_id'] ) ) {
+			return 'https://checkout.freemius.com/plugin/' . rawurlencode( $service['freemius_product_id'] ) . '/plan/' . rawurlencode( $service['freemius_plan_id'] ) . '/';
+		}
+		return '';
+	}
+
+	/** Return safe cached pricing. The API Bearer Token never leaves this server. */
+	public static function service_pricing( $service ) {
+		$empty = array( 'currency' => '', 'usd_price' => 0, 'uah_price' => 0, 'exchange_rate' => 0, 'updated_at' => 0 );
+		$cache = ! empty( $service['freemius_price_cache'] ) && is_array( $service['freemius_price_cache'] )
+			? wp_parse_args( $service['freemius_price_cache'], $empty ) : $empty;
+		if ( empty( $service['freemius_product_id'] ) || empty( $service['freemius_plan_id'] ) || empty( $service['freemius_api_token'] ) ) {
+			return $cache;
+		}
+		if ( ! empty( $cache['updated_at'] ) && ( time() - (int) $cache['updated_at'] ) < DAY_IN_SECONDS ) {
+			return $cache;
+		}
+		$url = sprintf( 'https://api.freemius.com/v1/products/%s/plans/%s/pricing.json', rawurlencode( $service['freemius_product_id'] ), rawurlencode( $service['freemius_plan_id'] ) );
+		$response = wp_remote_get( $url, array( 'timeout' => 15, 'headers' => array( 'Accept' => 'application/json', 'Authorization' => 'Bearer ' . trim( $service['freemius_api_token'] ) ) ) );
+		if ( ! is_wp_error( $response ) && 200 === (int) wp_remote_retrieve_response_code( $response ) ) {
+			$data = json_decode( wp_remote_retrieve_body( $response ), true );
+			$pricing = is_array( $data ) && isset( $data['pricing'] ) && is_array( $data['pricing'] ) ? $data['pricing'] : $data;
+			$amount = is_array( $pricing ) && isset( $pricing['lifetime_price'] ) ? (float) $pricing['lifetime_price'] : 0;
+			$currency = is_array( $pricing ) && isset( $pricing['currency'] ) ? strtoupper( sanitize_text_field( $pricing['currency'] ) ) : '';
+			if ( $amount > 0 && 'USD' === $currency ) {
+				$rate = 0;
+				$nbu = wp_remote_get( 'https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?valcode=USD&json', array( 'timeout' => 12, 'headers' => array( 'Accept' => 'application/json' ) ) );
+				if ( ! is_wp_error( $nbu ) && 200 === (int) wp_remote_retrieve_response_code( $nbu ) ) {
+					$rates = json_decode( wp_remote_retrieve_body( $nbu ), true );
+					if ( is_array( $rates ) && ! empty( $rates[0]['rate'] ) ) {
+						$rate = (float) $rates[0]['rate'];
+					}
+				}
+				if ( $rate <= 0 && ! empty( $cache['exchange_rate'] ) ) {
+					$rate = (float) $cache['exchange_rate'];
+				}
+				$uah = $rate > 0 ? (int) ( ceil( ( $amount * $rate ) / 10 ) * 10 ) : (int) $cache['uah_price'];
+				$cache = array( 'currency' => 'USD', 'usd_price' => $amount, 'uah_price' => $uah, 'exchange_rate' => $rate, 'updated_at' => time() );
+				$all = UPB_Services::all();
+				$id = isset( $service['id'] ) ? (int) $service['id'] : 0;
+				if ( $id && isset( $all[ $id ] ) ) {
+					$all[ $id ]['freemius_price_cache'] = $cache;
+					$all[ $id ]['price'] = '$' . number_format( $amount, 2, '.', '' ) . ( $uah ? ' / ' . number_format( $uah, 0, '.', ' ' ) . ' грн' : '' );
+					update_option( 'upb_services', $all, false );
+				}
+				return $cache;
+			}
+		}
+		return $cache;
+	}
+
 }
