@@ -359,15 +359,24 @@ class UPB_Admin {
 						<td><input id="upb-fs-checkout" name="svc[freemius_checkout_url]" type="url" class="large-text" value="<?php echo esc_attr( $v['freemius_checkout_url'] ); ?>" placeholder="https://checkout.freemius.com/..."></td>
 					</tr>
 					<tr>
+						<th><label for="upb-fs-api-token">Freemius API Bearer Token</label></th>
+						<td><input id="upb-fs-api-token" name="svc[freemius_api_token]" type="password" class="large-text code" value="" autocomplete="new-password" placeholder="<?php echo ! empty( $v['freemius_api_token'] ) ? 'API Token збережено — залиште порожнім, щоб не змінювати' : 'Вставте API Bearer Token'; ?>">
+						<p class="description">Окремий токен Freemius → Product Settings → API &amp; Keys. Потрібен для автоматичного читання ціни плану. Зберігається тільки в Pay Box.</p></td>
+					</tr>
+					<tr>
 						<th><label for="upb-fs-secret">Freemius Product Secret Key</label></th>
 						<td><input id="upb-fs-secret" name="svc[freemius_secret_key]" type="password" class="large-text code" value="" autocomplete="new-password" placeholder="<?php echo ! empty( $v['freemius_secret_key'] ) ? 'Ключ збережено — залиште порожнім, щоб не змінювати' : 'Вставте Product Secret Key'; ?>">
 						<p class="description">Зберігається тільки на сервері Pay Box. Ніколи не потрапляє в код для плагінів або додатків.</p></td>
 					</tr>
+					<?php if ( empty( $v['freemius_product_id'] ) || empty( $v['freemius_plan_id'] ) ) : ?>
 					<tr>
 						<th><label for="upb-days">Термін дії (днів)</label></th>
 						<td><input id="upb-days" name="svc[days]" type="number" min="1" max="9999" value="<?php echo (int) $v['days']; ?>">
 						<p class="description">30 = місяць, 365 = рік, <strong>9999 = безліміт</strong>.</p></td>
 					</tr>
+					<?php else : ?>
+					<tr><th>Термін дії</th><td><strong>Керується Freemius</strong><p class="description">Для довічного плану Freemius поле днів не використовується.</p></td></tr>
+					<?php endif; ?>
 					<tr>
 						<th><label for="upb-msg">Повідомлення після активації</label></th>
 						<td><textarea id="upb-msg" name="svc[success_message]" rows="3" class="large-text"><?php echo esc_textarea( $v['success_message'] ); ?></textarea>
@@ -448,7 +457,9 @@ class UPB_Admin {
 			$data['freemius_secret_key'] = $old['freemius_secret_key'];
 		}
 
-		$freemius_ready = '' !== $data['freemius_checkout_url'] && '' !== $data['freemius_product_id'] && '' !== $data['freemius_plan_id'] && '' !== $data['freemius_secret_key'];
+		$freemius_ready = '' !== $data['freemius_product_id'] && '' !== $data['freemius_plan_id'] && '' !== $data['freemius_secret_key'];
+		if ( '' === $data['freemius_checkout_url'] && $freemius_ready ) { $data['freemius_checkout_url'] = UPB_Freemius::checkout_url( $data ); }
+		if ( '' === $data['freemius_api_token'] && $old && ! empty( $old['freemius_api_token'] ) ) { $data['freemius_api_token'] = $old['freemius_api_token']; }
 		if ( '' === $data['name'] || ( '' === $data['url'] && ! $freemius_ready ) ) {
 			wp_safe_redirect( self::url( 'upb-services', $id ? array( 'action' => 'edit', 'id' => $id, 'upb_notice' => 'err_required' ) : array( 'action' => 'add', 'upb_notice' => 'err_required' ) ) );
 			exit;
