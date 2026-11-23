@@ -161,6 +161,10 @@ class UPB_Freemius {
 			'id',
 			self::value( $event_data, 'license_id', self::value( $payment, 'license_id', self::value( $data, 'license_id', '' ) ) )
 		);
+		// For license.* events Freemius may put only the related entity ID in data.
+		if ( '' === $license_id && isset( $data['data'] ) && is_scalar( $data['data'] ) && 0 < (int) $data['data'] && 0 === strpos( $event, 'license.' ) ) {
+			$license_id = (string) absint( $data['data'] );
+		}
 		if ( '' === $license_id ) {
 			return new WP_REST_Response( array( 'message' => 'License ID is missing from the Freemius event.' ), 400 );
 		}
