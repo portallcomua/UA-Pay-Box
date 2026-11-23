@@ -1,6 +1,7 @@
 name: Validate and package UA Pay Box
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
   release:
