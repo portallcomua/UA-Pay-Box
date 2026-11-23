@@ -24,6 +24,35 @@ class UPB_Updater {
 		add_filter( 'pre_set_site_transient_update_plugins', array( $this, 'check' ) );
 		add_filter( 'plugins_api', array( $this, 'info' ), 10, 3 );
 		add_filter( 'upgrader_source_selection', array( $this, 'fix_dir' ), 10, 4 );
+		add_filter( 'plugin_action_links_' . $this->basename, array( $this, 'action_links' ) );
+		add_action( 'admin_post_upb_check_github_updates', array( $this, 'force_check' ) );
+	}
+
+
+	/** Add a one-click forced update check to the plugin row. */
+	public function action_links( $links ) {
+		$url = wp_nonce_url(
+			admin_url( 'admin-post.php?action=upb_check_github_updates' ),
+			'upb_check_github_updates'
+		);
+		$links[] = '<a href="' . esc_url( $url ) . '">Перевірити оновлення</a>';
+		return $links;
+	}
+
+	/** Clear the six-hour GitHub cache and ask WordPress to check immediately. */
+	public function force_check() {
+		if ( ! current_user_can( 'update_plugins' ) ) {
+			wp_die( 'Недостатньо прав.' );
+		}
+		check_admin_referer( 'upb_check_github_updates' );
+		delete_transient( 'upb_gh_' . md5( $this->repo ) );
+		delete_site_transient( 'update_plugins' );
+		if ( function_exists( 'wp_clean_plugins_cache' ) ) {
+			wp_clean_plugins_cache( true );
+		}
+		wp_update_plugins();
+		wp_safe_redirect( admin_url( 'plugins.php?upb_github_checked=1' ) );
+		exit;
 	}
 
 	private function remote() {
