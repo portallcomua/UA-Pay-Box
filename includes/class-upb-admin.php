@@ -29,7 +29,7 @@ class UPB_Admin {
 		}
 		$missing = array();
 		foreach ( UPB_Services::all() as $s ) {
-			$freemius_ready = ! empty( $s['freemius_checkout_url'] ) && ! empty( $s['freemius_product_id'] ) && ! empty( $s['freemius_plan_id'] ) && ! empty( $s['freemius_secret_key'] );
+			$freemius_ready = ! empty( $s['freemius_product_id'] ) && ! empty( $s['freemius_plan_id'] ) && ! empty( $s['freemius_secret_key'] );
 			if ( ! empty( $s['enabled'] ) && empty( $s['url'] ) && ! $freemius_ready ) {
 				$missing[] = esc_html( $s['name'] );
 			}
@@ -303,6 +303,11 @@ class UPB_Admin {
 			return;
 		}
 		$v = $svc ? wp_parse_args( $svc, UPB_Services::defaults() ) : UPB_Services::defaults();
+		$pricing = $id ? UPB_Freemius::service_pricing( $v ) : array();
+		$freemius_pricing = ! empty( $v['freemius_product_id'] ) && ! empty( $v['freemius_plan_id'] ) && ! empty( $v['freemius_api_token'] );
+		if ( $freemius_pricing && ! empty( $pricing['usd_price'] ) ) {
+			$v['price'] = '$' . number_format( (float) $pricing['usd_price'], 2, '.', '' ) . ( ! empty( $pricing['uah_price'] ) ? ' / ' . number_format( (float) $pricing['uah_price'], 0, '.', ' ' ) . ' грн' : '' );
+		}
 		?>
 		<div class="wrap upb-wrap">
 			<h1><?php echo $id ? 'Редагувати послугу #' . (int) $id : 'Нова послуга'; ?></h1>
@@ -332,7 +337,8 @@ class UPB_Admin {
 					</tr>
 					<tr>
 						<th><label for="upb-price">Вартість (текст)</label></th>
-						<td><input id="upb-price" name="svc[price]" type="text" class="regular-text" value="<?php echo esc_attr( $v['price'] ); ?>" placeholder="100 грн"></td>
+						<td><input id="upb-price" name="svc[price]" type="text" class="regular-text" value="<?php echo esc_attr( $v['price'] ); ?>" placeholder="Автоматично з Freemius" <?php echo $freemius_pricing ? 'readonly' : ''; ?>>
+						<?php if ( $freemius_pricing ) : ?><p class="description">Ціна автоматично синхронізується з довічним планом Freemius. Показано USD та перерахунок у гривню за курсом НБУ (округлення вгору до 10 грн).</p><?php endif; ?></td>
 					</tr>
 					<tr>
 						<th><label for="upb-desc">Короткий опис (на картці)</label></th>
