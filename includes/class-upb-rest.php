@@ -55,7 +55,7 @@ class UPB_Rest {
 		$is_uk = 0 === strpos( strtolower( $locale ), 'uk' );
 		$price_display = $is_uk && ! empty( $pricing['uah_price'] )
 			? number_format( (float) $pricing['uah_price'], 0, '.', ' ' ) . ' грн'
-			: ( ! empty( $pricing['usd_price'] ) ? '
+			: ( ! empty( $pricing['usd_price'] ) ? chr( 36 ) . number_format( (float) $pricing['usd_price'], 2, '.', '' ) : ( ! empty( $svc['freemius_product_id'] ) ? '' : (string) $svc['price'] ) );
 		return new WP_REST_Response(
 			array(
 				'id' => (int) $svc['id'],
