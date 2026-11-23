@@ -1,4 +1,4 @@
-name: Validate and publish plugin release
+name: Validate and publish plugin release # PHP validation rerun after pricing REST fix
 
 on:
   push:
