@@ -55,7 +55,26 @@ class UPB_Rest {
 		$is_uk = 0 === strpos( strtolower( $locale ), 'uk' );
 		$price_display = $is_uk && ! empty( $pricing['uah_price'] )
 			? number_format( (float) $pricing['uah_price'], 0, '.', ' ' ) . ' грн'
-			: ( ! empty( $pricing['usd_price'] ) ? '
+			: ( ! empty( $pricing['usd_price'] ) ? '$' . number_format( (float) $pricing['usd_price'], 2, '.', '' ) : (string) $svc['price'] );
+		return new WP_REST_Response(
+			array(
+				'id' => (int) $svc['id'],
+				'slug' => $svc['slug'],
+				'name' => $svc['name'],
+				'price' => $price_display,
+				'price_usd' => (float) $pricing['usd_price'],
+				'price_uah' => (int) $pricing['uah_price'],
+				'currency' => $pricing['currency'],
+				'exchange_rate' => (float) $pricing['exchange_rate'],
+				'price_updated' => (int) $pricing['updated_at'],
+				'url' => $checkout ? $checkout : $svc['url'],
+				'checkout_url' => $checkout,
+				'days' => (int) $svc['days'],
+				'lifetime' => ! empty( $svc['freemius_product_id'] ) && ! empty( $svc['freemius_plan_id'] ),
+				'id_mode' => $svc['id_mode'],
+			),
+			200
+		);
 	}
 
 	/** GET status — стан PRO домену. */
