@@ -20,7 +20,7 @@ class UPB_Admin {
 		return $links;
 	}
 
-	/** Нагадування: проекти, створені плагінами автоматично, без посилання на Конверт. */
+	/** Нагадування про послуги без повної конфігурації Freemius. */
 	public static function missing_url_notice() {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
@@ -28,13 +28,13 @@ class UPB_Admin {
 		$missing = array();
 		foreach ( UPB_Services::all() as $s ) {
 			$freemius_ready = ! empty( $s['freemius_product_id'] ) && ! empty( $s['freemius_plan_id'] ) && ! empty( $s['freemius_secret_key'] );
-			if ( ! empty( $s['enabled'] ) && empty( $s['url'] ) && ! $freemius_ready ) {
+			if ( ! empty( $s['enabled'] ) && ! $freemius_ready ) {
 				$missing[] = esc_html( $s['name'] );
 			}
 		}
 		if ( $missing ) {
 			printf(
-				'<div class="notice notice-warning"><p><strong>UA Pay Box:</strong> вкажіть посилання на Конверт або Freemius Checkout та вартість для: %s. <a href="%s">Відкрити послуги</a></p></div>',
+				'<div class="notice notice-warning"><p><strong>UA Pay Box:</strong> заповніть Freemius Product ID, Plan ID і Product Secret Key для: %s. <a href="%s">Відкрити послуги</a></p></div>',
 				implode( ', ', $missing ), // phpcs:ignore -- уже екрановано вище
 				esc_url( admin_url( 'admin.php?page=upb-services' ) )
 			);
@@ -77,9 +77,7 @@ class UPB_Admin {
 
 	private static function notice() {
 		$map = array(
-			'blocked'       => array( 'updated', 'PRO вимкнено, користувача заблоковано.' ),
-			'unblocked'     => array( 'updated', 'Користувача розблоковано, PRO відновлено.' ),
-			'saved'         => array( 'updated', 'Послугу збережено.' ),
+						'saved'         => array( 'updated', 'Послугу збережено.' ),
 			'deleted'       => array( 'updated', 'Послугу видалено.' ),
 			'settings'      => array( 'updated', 'Налаштування збережено.' ),
 			'err_required'  => array( 'error', 'Заповніть назву послуги, Freemius Product ID, Plan ID та Product Secret Key.' ),
@@ -179,9 +177,9 @@ class UPB_Admin {
 				<?php foreach ( $services as $id => $s ) : ?>
 					<tr>
 						<td><strong><?php echo (int) $id; ?></strong></td>
-						<td><?php echo esc_html( $s['name'] ); ?><?php if ( ! empty( $s['slug'] ) ) : ?><br><span class="upb-id"><?php echo esc_html( $s['slug'] ); ?></span><?php endif; ?><?php if ( empty( $s['url'] ) ) : ?><br><strong style="color:#b32d2e">⚠️ немає посилання на Конверт</strong><?php endif; ?></td>
+						<td><?php echo esc_html( $s['name'] ); ?><?php if ( ! empty( $s['slug'] ) ) : ?><br><span class="upb-id"><?php echo esc_html( $s['slug'] ); ?></span><?php endif; ?><?php if ( empty( $s['freemius_product_id'] ) || empty( $s['freemius_plan_id'] ) || empty( $s['freemius_secret_key'] ) ) : ?><br><strong style="color:#b32d2e">⚠️ Freemius не налаштовано</strong><?php endif; ?></td>
 						<td><?php echo esc_html( $s['price'] ); ?></td>
-						<td><?php echo (int) $s['days'] >= 9999 ? 'Безстроково' : esc_html( UPB_Util::days_word( $s['days'] ) ); ?></td>
+						<td>Freemius</td>
 						<td><input type="text" readonly class="upb-code" value="[universal_pay_box id=&quot;<?php echo (int) $id; ?>&quot;]" onclick="this.select()"></td>
 						<td><input type="text" readonly class="upb-code" value="wcc_check_user_premium($user_id, <?php echo (int) $id; ?>)" onclick="this.select()"></td>
 						<td><?php echo ! empty( $s['enabled'] ) ? '🟢 Увімкнено' : '⚪ Вимкнено'; ?></td>
@@ -342,6 +340,8 @@ class UPB_Admin {
 		if ( $old ) {
 			$data = array_merge( UPB_Services::defaults(), $old, $data );
 		}
+		// Remove deprecated Privat/Monobank fields from the saved service record.
+		unset( $data['url'], $data['id_mode'], $data['block_subject'], $data['block_body'] );
 		if ( '' === $data['freemius_secret_key'] && $old && ! empty( $old['freemius_secret_key'] ) ) {
 			$data['freemius_secret_key'] = $old['freemius_secret_key'];
 		}
