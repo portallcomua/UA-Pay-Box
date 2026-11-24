@@ -30,9 +30,6 @@ class UPB_Services {
 			'freemius_secret_key' => '',
 			'freemius_api_token' => '',
 			'days'            => 30,
-			'success_message' => 'Вітаю! Ваш PRO-тариф активовано.',
-			'email_subject'   => 'Ваш тариф «{service}» скоро закінчується',
-			'email_body'      => "Вітаємо, {username}!\n\nВаш тариф «{service}» закінчується через {days} (до {expires}).\nЩоб не втратити доступ, продовжіть його на сайті {site}.\n\nДякуємо, що ви з нами!",
 			'enabled'         => 1,
 		);
 	}
@@ -58,9 +55,6 @@ class UPB_Services {
 			'freemius_secret_key' => sanitize_text_field( isset( $in['freemius_secret_key'] ) ? $in['freemius_secret_key'] : '' ),
 			'freemius_api_token' => sanitize_text_field( isset( $in['freemius_api_token'] ) ? $in['freemius_api_token'] : '' ),
 			'days'            => $days,
-			'success_message' => wp_kses_post( isset( $in['success_message'] ) ? $in['success_message'] : '' ),
-			'email_subject'   => sanitize_text_field( isset( $in['email_subject'] ) ? $in['email_subject'] : '' ),
-			'email_body'      => sanitize_textarea_field( isset( $in['email_body'] ) ? $in['email_body'] : '' ),
 			'enabled'         => ! empty( $in['enabled'] ) ? 1 : 0,
 		);
 	}
