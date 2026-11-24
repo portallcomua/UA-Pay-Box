@@ -21,11 +21,9 @@ class UPB_Services {
 	public static function defaults() {
 		return array(
 			'slug'            => '',
-			'id_mode'         => 'login',
 			'name'            => '',
 			'price'           => '',
 			'description'     => '',
-			'url'             => '',
 			'freemius_product_id' => '',
 			'freemius_plan_id' => '',
 			'freemius_checkout_url' => '',
@@ -35,8 +33,6 @@ class UPB_Services {
 			'success_message' => 'Вітаю! Ваш PRO-тариф активовано.',
 			'email_subject'   => 'Ваш тариф «{service}» скоро закінчується',
 			'email_body'      => "Вітаємо, {username}!\n\nВаш тариф «{service}» закінчується через {days} (до {expires}).\nЩоб не втратити доступ, продовжіть його на сайті {site}.\n\nДякуємо, що ви з нами!",
-			'block_subject'   => 'Послугу PRO «{service}» не сплачено — доступ заблоковано',
-			'block_body'      => "Вітаємо, {username}!\n\nПослугу PRO для плагіна «{service}» не сплачено, тому її заблоковано.\nДля сплати перейдіть за посиланням:\n{pay_url}\n\nУ коментарі до платежу обов'язково вкажіть {id_word}: {username}\nПісля надходження коштів доступ буде відновлено.\n\n{site}",
 			'enabled'         => 1,
 		);
 	}
@@ -53,11 +49,9 @@ class UPB_Services {
 		}
 		return array(
 			'slug'            => sanitize_title( isset( $in['slug'] ) ? $in['slug'] : '' ),
-			'id_mode'         => ( isset( $in['id_mode'] ) && 'domain' === $in['id_mode'] ) ? 'domain' : 'login',
 			'name'            => sanitize_text_field( isset( $in['name'] ) ? $in['name'] : '' ),
 			'price'           => sanitize_text_field( isset( $in['price'] ) ? $in['price'] : '' ),
 			'description'     => sanitize_textarea_field( isset( $in['description'] ) ? $in['description'] : '' ),
-			'url'             => esc_url_raw( trim( isset( $in['url'] ) ? $in['url'] : '' ), array( 'http', 'https' ) ),
 			'freemius_product_id' => sanitize_text_field( isset( $in['freemius_product_id'] ) ? $in['freemius_product_id'] : '' ),
 			'freemius_plan_id' => sanitize_text_field( isset( $in['freemius_plan_id'] ) ? $in['freemius_plan_id'] : '' ),
 			'freemius_checkout_url' => esc_url_raw( trim( isset( $in['freemius_checkout_url'] ) ? $in['freemius_checkout_url'] : '' ), array( 'http', 'https' ) ),
@@ -67,8 +61,6 @@ class UPB_Services {
 			'success_message' => wp_kses_post( isset( $in['success_message'] ) ? $in['success_message'] : '' ),
 			'email_subject'   => sanitize_text_field( isset( $in['email_subject'] ) ? $in['email_subject'] : '' ),
 			'email_body'      => sanitize_textarea_field( isset( $in['email_body'] ) ? $in['email_body'] : '' ),
-			'block_subject'   => sanitize_text_field( isset( $in['block_subject'] ) ? $in['block_subject'] : '' ),
-			'block_body'      => sanitize_textarea_field( isset( $in['block_body'] ) ? $in['block_body'] : '' ),
 			'enabled'         => ! empty( $in['enabled'] ) ? 1 : 0,
 		);
 	}
