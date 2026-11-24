@@ -32,9 +32,6 @@ class UPB_Frontend {
 			self::need();
 			return;
 		}
-		if ( is_user_logged_in() && get_transient( 'upb_msg_' . get_current_user_id() ) ) {
-			self::need();
-		}
 	}
 
 	/* ------------------------------------------------------------------ */
@@ -117,82 +114,41 @@ class UPB_Frontend {
 		if ( ! self::$needed ) {
 			return;
 		}
-
-		$uid  = get_current_user_id();
-		$user = $uid ? wp_get_current_user() : null;
-
+		$uid = get_current_user_id();
 		$services = array();
 		foreach ( UPB_Services::all() as $id => $svc ) {
 			if ( empty( $svc['enabled'] ) ) {
 				continue;
 			}
-			$st      = $uid ? UPB_Premium::state( $uid, $id ) : array( 'state' => 'guest', 'days_left' => 0 );
-			$can_buy = in_array( $st['state'], array( 'free', 'expiring' ), true );
+			$state = $uid ? UPB_Premium::state( $uid, $id ) : array( 'state' => 'guest', 'days_left' => 0 );
+			$can_buy = in_array( $state['state'], array( 'free', 'expiring' ), true );
 			$services[ $id ] = array(
-				'name'     => $svc['name'],
-				'price'    => $svc['price'],
-				'state'    => $st['state'],
-				'idMode'   => ( isset( $svc['id_mode'] ) && 'domain' === $svc['id_mode'] ) ? 'domain' : 'login',
-				'daysLeft' => (int) $st['days_left'],
-				'url'      => $can_buy ? $svc['url'] : '',
-				'checkoutUrl' => $can_buy && ! empty( $svc['freemius_checkout_url'] ) && ! empty( $svc['freemius_product_id'] ) && ! empty( $svc['freemius_plan_id'] ) && ! empty( $svc['freemius_secret_key'] ) ? $svc['freemius_checkout_url'] : '',
+				'name' => $svc['name'],
+				'price' => $svc['price'],
+				'state' => $state['state'],
+				'checkoutUrl' => $can_buy ? UPB_Freemius::checkout_url( $svc ) : '',
 			);
 		}
-
-		wp_localize_script(
-			'upb-frontend',
-			'UPB',
-			array(
-				'ajax'     => admin_url( 'admin-ajax.php' ),
-				'nonce'    => wp_create_nonce( 'upb_activate' ),
-				'loggedIn' => (bool) $uid,
-				'loginUrl' => wp_login_url( self::current_url() ),
-				'login'    => $user ? $user->user_login : '',
-				'domain'   => UPB_Util::site_domain(),
-				'services' => (object) $services,
-			)
-		);
-
-		if ( $uid ) {
-			$msg = get_transient( 'upb_msg_' . $uid );
-			if ( $msg ) {
-				delete_transient( 'upb_msg_' . $uid );
-				self::$toast = $msg;
-			}
-		}
+		wp_localize_script( 'upb-frontend', 'UPB', array(
+			'loggedIn' => (bool) $uid,
+			'loginUrl' => wp_login_url( self::current_url() ),
+			'services' => (object) $services,
+		) );
 		?>
 		<div class="upb-modal" id="upb-modal" hidden>
 			<div class="upb-modal__backdrop" data-upb-close></div>
 			<div class="upb-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="upb-modal-title">
 				<button type="button" class="upb-modal__x" data-upb-close aria-label="Закрити">&times;</button>
 				<h3 class="upb-modal__title" id="upb-modal-title">Оплата: <span data-upb-svc></span></h3>
-
 				<div class="upb-modal__msg" data-upb-msg hidden></div>
-
 				<div class="upb-modal__body" data-upb-body>
 					<div class="upb-modal__price" data-upb-price></div>
-					<div data-upb-envelope>
-					<p class="upb-modal__label" data-upb-idlabel>Ваш логін на сайті:</p>
-					<div class="upb-login-row">
-						<strong class="upb-login" data-upb-login></strong>
-						<button type="button" class="upb-copy" data-upb-copy>📋 Скопіювати логін</button>
-					</div>
-					<p class="upb-modal__note">
-						<strong>Обов'язково</strong> вставте скопійований <span data-upb-idword>логін</span> у поле «Коментар» або «Призначення платежу» на сторінці банку (ПриватБанк / Монобанк).
-						Це необхідно для верифікації вашого платежу адміном. Платежі без вказаного <span data-upb-idword2>логіна</span> будуть заблоковані.
-					</p>
-					<p class="upb-modal__hint">PRO активується одразу. Якщо платіж не надійде — адмін вимкне доступ.</p>
-					<button type="button" class="upb-go" data-upb-go disabled>Перейти до Конверта →</button>
-					</div>
+					<p>Після успішної оплати Freemius автоматично надішле підтвердження. PRO активується після перевірки цього підтвердження сервером.</p>
 					<a class="upb-go upb-go--freemius" data-upb-freemius href="#" target="_blank" rel="noopener noreferrer" hidden>Оплатити через Freemius →</a>
 				</div>
 			</div>
 		</div>
-		<?php if ( self::$toast ) : ?>
-			<div class="upb-toast" role="status">
-				<span class="upb-toast__text"><?php echo wp_kses_post( self::$toast ); ?></span>
-				<button type="button" class="upb-toast__x" data-upb-toast-close aria-label="Закрити">&times;</button>
-			</div>
-		<?php endif;
+		<?php
 	}
+
 }
