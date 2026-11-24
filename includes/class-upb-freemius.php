@@ -147,10 +147,10 @@ class UPB_Freemius {
 			self::value( $event_data, 'plan_id', self::value( $payment, 'plan_id', self::value( $data, 'plan_id', '' ) ) )
 		);
 
-		if ( ! empty( $service['freemius_product_id'] ) && $product_id !== (string) $service['freemius_product_id'] ) {
+		if ( '' !== $product_id && ! empty( $service['freemius_product_id'] ) && $product_id !== (string) $service['freemius_product_id'] ) {
 			return new WP_REST_Response( array( 'message' => 'Product ID does not match this Pay Box service.' ), 403 );
 		}
-		if ( ! empty( $service['freemius_plan_id'] ) && $plan_id !== (string) $service['freemius_plan_id'] ) {
+		if ( '' !== $plan_id && ! empty( $service['freemius_plan_id'] ) && $plan_id !== (string) $service['freemius_plan_id'] ) {
 			return new WP_REST_Response( array( 'message' => 'Plan ID does not match this Pay Box service.' ), 403 );
 		}
 
