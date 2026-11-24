@@ -232,23 +232,53 @@ class UPB_Freemius {
 		);
 	}
 
-	/** Public status check: the license key itself is the credential. */
+	/**
+	 * Public PRO status check.
+	 * New clients authenticate by the purchaser email supplied to Freemius
+	 * Checkout; legacy clients may continue to validate a license key.
+	 */
 	public static function license_status( WP_REST_Request $request ) {
 		$service_param = sanitize_text_field( (string) $request->get_param( 'service' ) );
 		$service_id    = upb_service_id( $service_param );
-		$key           = trim( (string) $request->get_param( 'license_key' ) );
-		if ( ! $service_id || '' === $key ) {
-			return new WP_REST_Response( array( 'valid' => false, 'message' => 'Service and license_key are required.' ), 400 );
+		if ( ! $service_id ) {
+			return new WP_REST_Response( array( 'valid' => false, 'message' => 'Service is required.' ), 400 );
 		}
-		$hash = hash_hmac( 'sha256', $key, wp_salt( 'auth' ) );
+
+		$email = sanitize_email( (string) $request->get_param( 'email' ) );
 		global $wpdb;
 		$table = self::license_table();
-		$row = $wpdb->get_row( $wpdb->prepare( "SELECT status, expires FROM {$table} WHERE service_id=%d AND license_hash=%s ORDER BY id DESC LIMIT 1", $service_id, $hash ) );
+
+		if ( $email && is_email( $email ) ) {
+			$row = $wpdb->get_row( $wpdb->prepare(
+				"SELECT status, expires FROM {$table} WHERE service_id=%d AND LOWER(email)=LOWER(%s) ORDER BY updated_at DESC, id DESC LIMIT 1",
+				$service_id,
+				$email
+			) );
+			$valid = $row && 'active' === $row->status && ( ! (int) $row->expires || (int) $row->expires > time() );
+			return new WP_REST_Response( array(
+				'valid'   => (bool) $valid,
+				'status'  => $row ? $row->status : 'not_found',
+				'expires' => $row && (int) $row->expires ? (int) $row->expires : 0,
+				'method'  => 'email',
+			), 200 );
+		}
+
+		$key = trim( (string) $request->get_param( 'license_key' ) );
+		if ( '' === $key ) {
+			return new WP_REST_Response( array( 'valid' => false, 'message' => 'A valid purchaser email is required.' ), 400 );
+		}
+		$hash = hash_hmac( 'sha256', $key, wp_salt( 'auth' ) );
+		$row = $wpdb->get_row( $wpdb->prepare(
+			"SELECT status, expires FROM {$table} WHERE service_id=%d AND license_hash=%s ORDER BY id DESC LIMIT 1",
+			$service_id,
+			$hash
+		) );
 		$valid = $row && 'active' === $row->status && ( ! (int) $row->expires || (int) $row->expires > time() );
 		return new WP_REST_Response( array(
-			'valid' => (bool) $valid,
-			'status' => $row ? $row->status : 'not_found',
+			'valid'   => (bool) $valid,
+			'status'  => $row ? $row->status : 'not_found',
 			'expires' => $row && (int) $row->expires ? (int) $row->expires : 0,
+			'method'  => 'license_key',
 		), 200 );
 	}
 
