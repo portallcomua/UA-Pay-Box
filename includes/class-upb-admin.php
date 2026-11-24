@@ -42,7 +42,7 @@ class UPB_Admin {
 	}
 
 	public static function menu() {
-		add_menu_page( 'Контроль Преміумів', 'UA Pay Box', 'manage_options', 'upb-premiums', array( __CLASS__, 'page_premiums' ), 'dashicons-awards', 58 );
+		add_menu_page( 'Ліцензії Freemius', 'UA Pay Box', 'manage_options', 'upb-premiums', array( __CLASS__, 'page_premiums' ), 'dashicons-awards', 58 );
 		add_submenu_page( 'upb-premiums', 'Контроль Преміумів', 'Контроль Преміумів', 'manage_options', 'upb-premiums', array( __CLASS__, 'page_premiums' ) );
 		add_submenu_page( 'upb-premiums', 'Послуги', 'Послуги', 'manage_options', 'upb-services', array( __CLASS__, 'page_services' ) );
 		add_submenu_page( 'upb-premiums', 'Налаштування', 'Налаштування', 'manage_options', 'upb-settings', array( __CLASS__, 'page_settings' ) );
@@ -169,7 +169,7 @@ class UPB_Admin {
 			<?php self::notice(); ?>
 
 			<table class="widefat striped">
-				<thead><tr><th>ID</th><th>Назва / плагін</th><th>Вартість</th><th>Термін</th><th>Шорткод</th><th>PHP-перевірка</th><th>Статус</th><th></th></tr></thead>
+				<thead><tr><th>ID</th><th>Назва / плагін</th><th>Вартість</th><th>Платіжна система</th><th>Шорткод</th><th>PHP-перевірка</th><th>Статус</th><th></th></tr></thead>
 				<tbody>
 				<?php if ( ! $services ) : ?>
 					<tr><td colspan="8">Послуг ще немає. Натисніть «Додати послугу».</td></tr>
@@ -437,7 +437,7 @@ echo upb_buy_button( 1, 'Купити PRO' );</pre>
 			<p><strong>Кнопка «Купити» всередині гри / будь-якого HTML:</strong></p>
 			<pre class="upb-pre">&lt;button data-upb-buy="1"&gt;Купити PRO&lt;/button&gt;
 &lt;script&gt; UPB.open(1); &lt;/script&gt;   // або викликом з JS</pre>
-			<p>Хуки: <code>upb_premium_activated</code>, <code>upb_premium_blocked</code>, <code>upb_premium_unblocked</code>, <code>upb_premium_expired</code>, фільтр <code>upb_user_is_premium</code>. Також є <code>wcc_get_user_premium_expiry($user_id, $service_id)</code>.</p>
+			<p>Доступ до PRO перевіряється за чинною ліцензією Freemius через фільтр <code>upb_user_is_premium</code>. Також є <code>wcc_get_user_premium_expiry($user_id, $service_id)</code>.</p>
 		</div>
 		<?php
 	}
