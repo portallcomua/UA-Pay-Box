@@ -53,9 +53,13 @@ class UPB_Rest {
 		$checkout = UPB_Freemius::checkout_url( $svc );
 		$locale = sanitize_text_field( (string) $req->get_param( 'locale' ) );
 		$is_uk = 0 === strpos( strtolower( $locale ), 'uk' );
+		// Freemius price has priority. Keep the editable Pay Box price as a
+		// fallback for existing services if Freemius pricing is temporarily unavailable.
 		$price_display = $is_uk && ! empty( $pricing['uah_price'] )
 			? number_format( (float) $pricing['uah_price'], 0, '.', ' ' ) . ' грн'
-			: ( ! empty( $pricing['usd_price'] ) ? chr( 36 ) . number_format( (float) $pricing['usd_price'], 2, '.', '' ) : ( ! empty( $svc['freemius_product_id'] ) ? '' : (string) $svc['price'] ) );
+			: ( ! empty( $pricing['usd_price'] )
+				? chr( 36 ) . number_format( (float) $pricing['usd_price'], 2, '.', '' )
+				: (string) $svc['price'] );
 		return new WP_REST_Response(
 			array(
 				'id' => (int) $svc['id'],
