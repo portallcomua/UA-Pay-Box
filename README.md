@@ -34,7 +34,9 @@
 - `license.expired`
 - `license.deleted`
 - `payment.refund`
+- `payment.dispute.closed`
 - `payment.dispute.lost`
+- `payment.dispute.won`
 
 Невідомі події ігноруються та не можуть самостійно активувати PRO. Для відкликання ліцензії Pay Box зберігає її статус у таблиці Freemius; сам ключ у відкритому вигляді не зберігається.
 
