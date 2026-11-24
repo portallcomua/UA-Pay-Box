@@ -16,17 +16,6 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class UPB_Premium {
 
-	const META_PREFIX = '_upb_premium_';
-
-	public static function key( $service_id ) {
-		return self::META_PREFIX . (int) $service_id;
-	}
-
-	public static function get( $user_id, $service_id ) {
-		$m = get_user_meta( (int) $user_id, self::key( $service_id ), true );
-		return is_array( $m ) ? $m : null;
-	}
-
 	/** Чи має користувач чинний PRO. */
 	public static function is_active( $user_id, $service_id ) {
 		$user = get_userdata( (int) $user_id );
