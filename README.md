@@ -1,4 +1,4 @@
-# UA Pay Box 1.3.9
+# UA Pay Box 1.3.10
 
 Платіжний центр для WordPress-плагінів, Android та Chrome. **Єдиний спосіб оплати й керування PRO — Freemius Checkout + підписані Freemius Webhooks.** Старий сценарій PrivatBank/Monobank «Конверт» та ручне блокування/розблокування більше не використовуються.
 
