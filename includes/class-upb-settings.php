@@ -9,7 +9,6 @@ class UPB_Settings {
 		return array(
 			'warn_days'       => 10,
 			'load_everywhere' => 0,
-			'notify_admin'    => 1,
 			'delete_data'     => 0,
 		);
 	}
