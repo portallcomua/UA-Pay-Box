@@ -50,6 +50,10 @@ class UPB_Rest {
 		}
 		$pricing = UPB_Freemius::service_pricing( $svc );
 		$checkout = UPB_Freemius::checkout_url( $svc );
+		$buyer_email = sanitize_email( (string) $req->get_param( 'email' ) );
+		if ( $checkout && is_email( $buyer_email ) ) {
+			$checkout = add_query_arg( array( 'user_email' => $buyer_email, 'readonly_user' => 'true' ), $checkout );
+		}
 		$locale = sanitize_text_field( (string) $req->get_param( 'locale' ) );
 		$is_uk = 0 === strpos( strtolower( $locale ), 'uk' );
 		// Freemius price has priority. Keep the editable Pay Box price as a
