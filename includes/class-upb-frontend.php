@@ -116,6 +116,7 @@ class UPB_Frontend {
 			return;
 		}
 		$uid = get_current_user_id();
+		$user = $uid ? get_userdata( $uid ) : null;
 		$services = array();
 		foreach ( UPB_Services::all() as $id => $svc ) {
 			if ( empty( $svc['enabled'] ) ) {
@@ -123,11 +124,15 @@ class UPB_Frontend {
 			}
 			$state = $uid ? UPB_Premium::state( $uid, $id ) : array( 'state' => 'guest', 'days_left' => 0 );
 			$can_buy = in_array( $state['state'], array( 'free', 'expiring' ), true );
+			$checkout_url = $can_buy ? UPB_Freemius::checkout_url( $svc ) : '';
+			if ( $checkout_url && $user && is_email( $user->user_email ) ) {
+				$checkout_url = add_query_arg( array( 'user_email' => $user->user_email, 'readonly_user' => 'true' ), $checkout_url );
+			}
 			$services[ $id ] = array(
 				'name' => $svc['name'],
 				'price' => $svc['price'],
 				'state' => $state['state'],
-				'checkoutUrl' => $can_buy ? UPB_Freemius::checkout_url( $svc ) : '',
+				'checkoutUrl' => $checkout_url,
 			);
 		}
 		wp_localize_script( 'upb-frontend', 'UPB', array(
