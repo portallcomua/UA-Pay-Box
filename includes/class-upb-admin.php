@@ -330,7 +330,7 @@ class UPB_Admin {
 			$data = array_merge( UPB_Services::defaults(), $old, $data );
 		}
 		// Remove deprecated Privat/Monobank fields from the saved service record.
-		unset( $data['url'], $data['id_mode'], $data['block_subject'], $data['block_body'] );
+		unset( $data['url'], $data['id_mode'], $data['block_subject'], $data['block_body'], $data['success_message'], $data['email_subject'], $data['email_body'] );
 		if ( '' === $data['freemius_secret_key'] && $old && ! empty( $old['freemius_secret_key'] ) ) {
 			$data['freemius_secret_key'] = $old['freemius_secret_key'];
 		}
