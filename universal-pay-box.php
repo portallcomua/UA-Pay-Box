@@ -2,8 +2,8 @@
 /**
  * Plugin Name: UA Pay Box
  * Plugin URI:  https://uaserver.pp.ua
- * Description: Платіжний центр для WordPress, Android і Chrome: PrivatBank/Monobank Конверт та Freemius Checkout без SDK, миттєва активація Конверта і перевірка ліцензій через webhook.
- * Version:     1.3.8
+ * Description: Платіжний центр для WordPress, Android і Chrome з оплатою та керуванням PRO через Freemius Checkout і підписані webhooks.
+ * Version:     1.3.10
  * Author:      UAServer
  * Author URI:  https://uaserver.pp.ua
  * License:     GPLv2 or later
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'UPB_VERSION', '1.3.8' );
+define( 'UPB_VERSION', '1.3.10' );
 define( 'UPB_GITHUB', 'portallcomua/UA-Pay-Box' );
 define( 'UPB_FILE', __FILE__ );
 define( 'UPB_DIR', plugin_dir_path( __FILE__ ) );
@@ -38,7 +38,6 @@ register_deactivation_hook( __FILE__, array( 'UPB_Installer', 'deactivate' ) );
 
 add_action( 'plugins_loaded', function () {
 	UPB_Installer::maybe_upgrade();
-	UPB_Cron::init();
 	UPB_Frontend::init();
 	UPB_Rest::init();
 	UPB_Freemius::init();
