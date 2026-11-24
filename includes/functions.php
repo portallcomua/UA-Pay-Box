@@ -40,8 +40,8 @@ if ( ! function_exists( 'wcc_get_user_premium_expiry' ) ) {
 		if ( ! wcc_check_user_premium( $user_id, $service_id ) ) {
 			return false;
 		}
-		$m = UPB_Premium::get( $user_id, $service_id );
-		return $m ? (int) $m['expires'] : false;
+		$state = UPB_Premium::state( $user_id, $service_id );
+		return 'unlimited' === $state['state'] ? 0 : (int) $state['expires'];
 	}
 }
 
@@ -100,9 +100,6 @@ if ( ! function_exists( 'upb_buy_button' ) ) {
 		$uid = get_current_user_id();
 		if ( $uid ) {
 			$st = UPB_Premium::state( $uid, $service_id );
-			if ( 'blocked' === $st['state'] ) {
-				return '<span class="upb-inline-note upb-inline-note--blocked">⛔ PRO заблоковано адміністратором</span>';
-			}
 			if ( 'active' === $st['state'] || 'unlimited' === $st['state'] ) {
 				return '<span class="upb-inline-note">✅ PRO активний</span>';
 			}
