@@ -29,43 +29,37 @@ class UPB_Premium {
 
 	/** Чи має користувач чинний PRO. */
 	public static function is_active( $user_id, $service_id ) {
-		$m = self::get( $user_id, $service_id );
-		if ( ! $m || ( isset( $m['status'] ) ? $m['status'] : '' ) !== 'active' ) {
+		$user = get_userdata( (int) $user_id );
+		if ( ! $user || ! is_email( $user->user_email ) ) {
 			return false;
 		}
-		$exp = isset( $m['expires'] ) ? (int) $m['expires'] : 0;
-		return 0 === $exp || $exp > time();
+		return UPB_Freemius::is_email_active( (int) $service_id, $user->user_email );
 	}
 
 	/**
-	 * Детальний стан: free | active | expiring | unlimited | blocked
+	 * Стан PRO визначається тільки записом Freemius, а не старими user_meta.
 	 */
 	public static function state( $user_id, $service_id ) {
 		$out = array( 'state' => 'free', 'expires' => 0, 'days_left' => 0 );
-		$m   = self::get( $user_id, $service_id );
-		if ( ! $m ) {
+		$user = get_userdata( (int) $user_id );
+		if ( ! $user || ! is_email( $user->user_email ) ) {
 			return $out;
 		}
-		$status = isset( $m['status'] ) ? $m['status'] : '';
-		if ( 'blocked' === $status ) {
-			$out['state'] = 'blocked';
+		$license = UPB_Freemius::get_email_license( (int) $service_id, $user->user_email );
+		if ( ! $license || 'active' !== $license->status ) {
 			return $out;
 		}
-		if ( 'active' !== $status ) {
+		$exp = (int) $license->expires;
+		if ( $exp && $exp <= time() ) {
 			return $out;
 		}
-		$exp = isset( $m['expires'] ) ? (int) $m['expires'] : 0;
 		if ( 0 === $exp ) {
 			$out['state'] = 'unlimited';
 			return $out;
 		}
-		if ( $exp <= time() ) {
-			return $out; // прострочено, cron ще не встиг позначити
-		}
-		$days             = (int) ceil( ( $exp - time() ) / DAY_IN_SECONDS );
-		$out['expires']   = $exp;
-		$out['days_left'] = $days;
-		$out['state']     = ( $days <= (int) UPB_Settings::get( 'warn_days' ) ) ? 'expiring' : 'active';
+		$out['expires'] = $exp;
+		$out['days_left'] = (int) ceil( ( $exp - time() ) / DAY_IN_SECONDS );
+		$out['state'] = $out['days_left'] <= (int) UPB_Settings::get( 'warn_days' ) ? 'expiring' : 'active';
 		return $out;
 	}
 
