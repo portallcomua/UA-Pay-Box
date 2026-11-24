@@ -22,29 +22,22 @@ class UPB_Remote {
 	/** free | active | expiring | unlimited | blocked */
 	public static function state( $service_id, $domain ) {
 		$out = array( 'state' => 'free', 'expires' => 0, 'days_left' => 0 );
-		$r   = self::get( $service_id, $domain );
-		if ( ! $r ) {
+		$row = self::get( $service_id, $domain );
+		if ( ! $row || ! is_email( $row->email ) ) {
 			return $out;
 		}
-		if ( 'blocked' === $r->status ) {
-			$out['state'] = 'blocked';
+		$license = UPB_Freemius::get_email_license( (int) $service_id, $row->email );
+		if ( ! $license ) {
 			return $out;
 		}
-		if ( 'active' !== $r->status ) {
-			return $out;
-		}
-		$exp = (int) $r->expires;
+		$exp = (int) $license->expires;
 		if ( 0 === $exp ) {
 			$out['state'] = 'unlimited';
 			return $out;
 		}
-		if ( $exp <= time() ) {
-			return $out;
-		}
-		$days             = (int) ceil( ( $exp - time() ) / DAY_IN_SECONDS );
-		$out['expires']   = $exp;
-		$out['days_left'] = $days;
-		$out['state']     = ( $days <= (int) UPB_Settings::get( 'warn_days' ) ) ? 'expiring' : 'active';
+		$out['expires'] = $exp;
+		$out['days_left'] = (int) ceil( ( $exp - time() ) / DAY_IN_SECONDS );
+		$out['state'] = $out['days_left'] <= (int) UPB_Settings::get( 'warn_days' ) ? 'expiring' : 'active';
 		return $out;
 	}
 
