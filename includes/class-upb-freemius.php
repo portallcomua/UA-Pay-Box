@@ -250,11 +250,12 @@ class UPB_Freemius {
 
 		if ( $email && is_email( $email ) ) {
 			$row = $wpdb->get_row( $wpdb->prepare(
-				"SELECT status, expires FROM {$table} WHERE service_id=%d AND LOWER(email)=LOWER(%s) ORDER BY updated_at DESC, id DESC LIMIT 1",
+				"SELECT status, expires FROM {$table} WHERE service_id=%d AND LOWER(email)=LOWER(%s) AND status='active' AND (expires=0 OR expires>%d) ORDER BY updated_at DESC, id DESC LIMIT 1",
 				$service_id,
-				$email
+				$email,
+				time()
 			) );
-			$valid = $row && 'active' === $row->status && ( ! (int) $row->expires || (int) $row->expires > time() );
+			$valid = (bool) $row;
 			return new WP_REST_Response( array(
 				'valid'   => (bool) $valid,
 				'status'  => $row ? $row->status : 'not_found',
