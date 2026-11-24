@@ -82,7 +82,7 @@ class UPB_Admin {
 			'saved'         => array( 'updated', 'Послугу збережено.' ),
 			'deleted'       => array( 'updated', 'Послугу видалено.' ),
 			'settings'      => array( 'updated', 'Налаштування збережено.' ),
-			'err_required'  => array( 'error', 'Заповніть назву послуги та хоча б одне посилання для оплати: Конверт або Freemius Checkout.' ),
+			'err_required'  => array( 'error', 'Заповніть назву послуги, Freemius Product ID, Plan ID та Product Secret Key.' ),
 			'save_failed'  => array( 'error', 'Помилка збереження послуги. Дані не підтверджені після запису в базу WordPress. Перевірте права бази даних або журнал помилок.' ),
 		);
 		$key = isset( $_GET['upb_notice'] ) ? sanitize_key( wp_unslash( $_GET['upb_notice'] ) ) : '';
@@ -224,14 +224,7 @@ class UPB_Admin {
 						<td><input id="upb-slug" name="svc[slug]" type="text" class="regular-text code" value="<?php echo esc_attr( $v['slug'] ); ?>" placeholder="voice-add-woocommerce">
 						<p class="description">Ідентифікатор для підключення плагіна (латиницею). Плагіни Voice ADD реєструють проект самі — тут він уже буде заповнений.</p></td>
 					</tr>
-					<tr>
-						<th><label for="upb-idmode">Що клієнт вказує в коментарі до платежу</label></th>
-						<td><select id="upb-idmode" name="svc[id_mode]">
-							<option value="login" <?php selected( $v['id_mode'], 'login' ); ?>>Логін на сайті (плагіни цього сайту)</option>
-							<option value="domain" <?php selected( $v['id_mode'], 'domain' ); ?>>Домен сайту (плагіни на чужих сайтах)</option>
-						</select>
-						<p class="description">Для плагінів Voice ADD, які ставляться на сайти клієнтів, обирайте «Домен» — логіни там майже завжди «admin».</p></td>
-					</tr>
+					
 					<tr>
 						<th><label for="upb-name">Назва послуги *</label></th>
 						<td><input id="upb-name" name="svc[name]" type="text" class="regular-text" required value="<?php echo esc_attr( $v['name'] ); ?>" placeholder="Шахи ПРО: Пожиттєвий"></td>
@@ -245,13 +238,9 @@ class UPB_Admin {
 						<th><label for="upb-desc">Короткий опис (на картці)</label></th>
 						<td><textarea id="upb-desc" name="svc[description]" rows="3" class="large-text"><?php echo esc_textarea( $v['description'] ); ?></textarea></td>
 					</tr>
+					
 					<tr>
-						<th><label for="upb-url">Посилання на Конверт</label></th>
-						<td><input id="upb-url" name="svc[url]" type="url" class="large-text" value="<?php echo esc_attr( $v['url'] ); ?>" placeholder="https://www.privat24.ua/send/…">
-						<p class="description">Необов'язково, якщо для цього проекту використовується Freemius. При переході до Конверта PRO активується одразу, як і раніше.</p></td>
-					</tr>
-					<tr>
-						<th colspan="2"><h2>Freemius Checkout (без SDK)</h2><p class="description">Платіж проходить у Freemius. Після підтвердження Freemius надсилає підписаний webhook до Pay Box, а ліцензія стає доступною для перевірки у WordPress, Android та Chrome.</p></th>
+						<th colspan="2"><h2>Freemius Checkout — єдиний спосіб оплати</h2><p class="description">Користувач переходить до Freemius. PRO відкривається лише після отримання та перевірки підписаного webhook про ліцензію. Натискання кнопки або повернення з Checkout не активує доступ.</p></th>
 					</tr>
 					<tr>
 						<th><label for="upb-fs-product">Freemius Product ID</label></th>
@@ -298,15 +287,8 @@ class UPB_Admin {
 						<td><textarea id="upb-body" name="svc[email_body]" rows="7" class="large-text"><?php echo esc_textarea( $v['email_body'] ); ?></textarea>
 						<p class="description">Плейсхолдери: <code>{username}</code> <code>{service}</code> <code>{days}</code> <code>{expires}</code> <code>{site}</code>. Лист надходить один раз, коли до кінця тарифу лишається не більше N днів (див. «Налаштування»).</p></td>
 					</tr>
-					<tr>
-						<th><label for="upb-bsubj">Лист про блокування: тема</label></th>
-						<td><input id="upb-bsubj" name="svc[block_subject]" type="text" class="large-text" value="<?php echo esc_attr( $v['block_subject'] ); ?>"></td>
-					</tr>
-					<tr>
-						<th><label for="upb-bbody">Лист про блокування: текст</label></th>
-						<td><textarea id="upb-bbody" name="svc[block_body]" rows="8" class="large-text"><?php echo esc_textarea( $v['block_body'] ); ?></textarea>
-						<p class="description">Надсилається автоматично, коли ви натискаєте «Відключити PRO / Заблокувати». Плейсхолдери: <code>{username}</code> (логін або домен) <code>{id_word}</code> («логін»/«домен») <code>{domain}</code> <code>{service}</code> <code>{pay_url}</code> (посилання на Конверт) <code>{site}</code>.</p></td>
-					</tr>
+					
+					
 					<tr>
 						<th>Статус</th>
 						<td><label><input type="checkbox" name="svc[enabled]" value="1" <?php checked( ! empty( $v['enabled'] ) ); ?>> Послуга увімкнена (доступна для купівлі)</label></td>
@@ -367,7 +349,7 @@ class UPB_Admin {
 		$freemius_ready = '' !== $data['freemius_product_id'] && '' !== $data['freemius_plan_id'] && '' !== $data['freemius_secret_key'];
 		if ( '' === $data['freemius_checkout_url'] && $freemius_ready ) { $data['freemius_checkout_url'] = UPB_Freemius::checkout_url( $data ); }
 		if ( '' === $data['freemius_api_token'] && $old && ! empty( $old['freemius_api_token'] ) ) { $data['freemius_api_token'] = $old['freemius_api_token']; }
-		if ( '' === $data['name'] || ( '' === $data['url'] && ! $freemius_ready ) ) {
+		if ( '' === $data['name'] || ! $freemius_ready ) {
 			wp_safe_redirect( self::url( 'upb-services', $id ? array( 'action' => 'edit', 'id' => $id, 'upb_notice' => 'err_required' ) : array( 'action' => 'add', 'upb_notice' => 'err_required' ) ) );
 			exit;
 		}
