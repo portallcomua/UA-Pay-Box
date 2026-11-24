@@ -437,7 +437,6 @@ echo upb_buy_button( 1, 'Купити PRO' );</pre>
 			'upb_settings',
 			array(
 				'warn_days'       => $warn,
-				'notify_admin'    => ! empty( $in['notify_admin'] ) ? 1 : 0,
 				'load_everywhere' => ! empty( $in['load_everywhere'] ) ? 1 : 0,
 				'delete_data'     => ! empty( $in['delete_data'] ) ? 1 : 0,
 			),
