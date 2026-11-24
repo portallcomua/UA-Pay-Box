@@ -99,45 +99,6 @@ class UPB_Rest {
 		), 200 );
 	}
 
-	/** POST activate — миттєва активація PRO для домену (оплату перевіряє адмін). */
-	public static function activate( WP_REST_Request $req ) {
-		$svc    = self::svc_by_param( $req );
-		$domain = UPB_Util::clean_domain( $req->get_param( 'domain' ) );
-		if ( ! $svc || empty( $svc['enabled'] ) || ! $domain ) {
-			return new WP_REST_Response( array( 'message' => 'Невірний проект або домен.' ), 400 );
-		}
-		if ( empty( $svc['url'] ) ) {
-			return new WP_REST_Response( array( 'message' => 'Адміністратор ще не вказав посилання на оплату.' ), 409 );
-		}
-		$rl = 'upb_rl_' . md5( $domain . $svc['id'] );
-		if ( get_transient( $rl ) ) {
-			return new WP_REST_Response( array( 'message' => 'Забагато запитів. Спробуйте за хвилину.' ), 429 );
-		}
-		set_transient( $rl, 1, 20 );
-		$email = sanitize_email( (string) $req->get_param( 'email' ) );
-		$res   = UPB_Remote::activate( $svc, $domain, $email );
-		if ( is_wp_error( $res ) ) {
-			return new WP_REST_Response( array( 'message' => $res->get_error_message() ), 409 );
-		}
-		if ( UPB_Settings::get( 'notify_admin' ) ) {
-			wp_mail(
-				get_option( 'admin_email' ),
-				'[' . wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) . '] Новий PRO: ' . $domain,
-				"Сайт «{$domain}» ({$email}) натиснув оплату послуги «{$svc['name']}» ({$svc['price']}).\nPRO активовано миттєво. Перевірте надходження в банку (в коментарі має бути домен) і за потреби заблокуйте: " . admin_url( 'admin.php?page=upb-premiums' )
-			);
-		}
-		$st = UPB_Remote::state( (int) $svc['id'], $domain );
-		return new WP_REST_Response(
-			array(
-				'state'   => $st['state'],
-				'premium' => true,
-				'expires' => (int) $res['expires'],
-				'url'     => $svc['url'],
-			),
-			200
-		);
-	}
-
 	public static function check( WP_REST_Request $req ) {
 		$key = (string) $req->get_param( 'api_key' );
 		if ( ! $key || ! hash_equals( self::api_key(), $key ) ) {
