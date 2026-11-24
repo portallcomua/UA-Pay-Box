@@ -69,7 +69,7 @@ class UPB_Freemius {
 	public static function webhook( WP_REST_Request $request ) {
 		$service_id = absint( $request['service_id'] );
 		$service    = UPB_Services::get( $service_id );
-		if ( ! $service || empty( $service['enabled'] ) || empty( $service['freemius_secret_key'] ) ) {
+		if ( ! $service || empty( $service['freemius_secret_key'] ) ) {
 			return new WP_REST_Response( array( 'message' => 'Freemius integration is not configured.' ), 404 );
 		}
 
@@ -310,6 +310,9 @@ class UPB_Freemius {
 
 	/** Build the standard hosted checkout URL from the configured product and plan. */
 	public static function checkout_url( $service ) {
+		if ( empty( $service['freemius_product_id'] ) || empty( $service['freemius_plan_id'] ) || empty( $service['freemius_secret_key'] ) ) {
+			return '';
+		}
 		if ( ! empty( $service['freemius_checkout_url'] ) ) {
 			return esc_url_raw( $service['freemius_checkout_url'] );
 		}
