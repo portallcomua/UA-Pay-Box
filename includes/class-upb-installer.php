@@ -18,7 +18,6 @@ class UPB_Installer {
 		add_option( 'upb_next_id', 1, '', 'no' );
 		add_option( 'upb_settings', UPB_Settings::defaults(), '', 'no' );
 		update_option( 'upb_db_version', self::DB_VERSION );
-		UPB_Cron::schedule();
 	}
 
 	public static function deactivate() {
