@@ -21,10 +21,31 @@ class UPB_Installer {
 	}
 
 	public static function maybe_upgrade() {
-		if ( (string) get_option( 'upb_db_version' ) !== self::DB_VERSION ) {
-			self::create_table();
-			update_option( 'upb_db_version', self::DB_VERSION );
+		if ( (string) get_option( 'upb_db_version' ) === self::DB_VERSION ) {
+			return;
 		}
+
+		global $wpdb;
+		// The administrator approved retirement of the old manual bank-payment workflow.
+		$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}upb_log" );
+		$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}upb_remote" );
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->usermeta} WHERE meta_key LIKE %s", $wpdb->esc_like( '_upb_premium_' ) . '%' ) );
+		wp_clear_scheduled_hook( 'upb_daily_check' );
+
+		$services = UPB_Services::all();
+		foreach ( $services as $id => $service ) {
+			unset( $services[ $id ]['url'], $services[ $id ]['id_mode'], $services[ $id ]['block_subject'], $services[ $id ]['block_body'], $services[ $id ]['success_message'], $services[ $id ]['email_subject'], $services[ $id ]['email_body'] );
+		}
+		update_option( 'upb_services', $services, false );
+
+		$settings = get_option( 'upb_settings', array() );
+		if ( is_array( $settings ) ) {
+			unset( $settings['notify_admin'] );
+			update_option( 'upb_settings', $settings, false );
+		}
+
+		self::create_table();
+		update_option( 'upb_db_version', self::DB_VERSION );
 	}
 
 	/** Create only the Freemius license table. Legacy payment tables are no longer used. */
