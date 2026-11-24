@@ -1,4 +1,4 @@
-/* Universal Pay Box PRO — модальне вікно, копіювання логіна, миттєва активація */
+/* UA Pay Box — Freemius Checkout; PRO becomes active only after a verified webhook */
 (function () {
 	'use strict';
 
@@ -22,8 +22,7 @@
 			els.envelope = q('[data-upb-envelope]', modal);
 			els.msg  = q('[data-upb-msg]', modal);
 			els.body = q('[data-upb-body]', modal);
-			els.copy.addEventListener('click', onCopy);
-			els.go.addEventListener('click', onGo);
+
 		}
 
 		document.addEventListener('click', function (e) {
@@ -63,38 +62,26 @@
 		st.sid = sid; st.copied = false; st.busy = false;
 		els.svc.textContent = svc.name;
 		els.price.textContent = svc.price || '';
-		var dom = svc.idMode === 'domain';
-		st.value = dom ? D.domain : D.login;
-		els.login.textContent = st.value;
-		els.idlabel.textContent = dom ? 'Домен вашого сайту:' : 'Ваш логін на сайті:';
-		els.idword.textContent = dom ? 'домен' : 'логін';
-		els.idword2.textContent = dom ? 'домена' : 'логіна';
-		st.label = dom ? '📋 Скопіювати домен' : '📋 Скопіювати логін';
-		els.copy.textContent = st.label;
-		els.copy.classList.remove('is-copied');
-		els.go.disabled = true;
-		els.go.hidden = !svc.url;
-		els.go.style.display = svc.url ? '' : 'none';
-		els.envelope.hidden = !svc.url;
-		els.envelope.style.display = svc.url ? '' : 'none';
-		els.go.textContent = 'Перейти до Конверта →';
+		els.envelope.hidden = true;
+		els.envelope.style.display = 'none';
+		els.go.hidden = true;
+		els.go.style.display = 'none';
 		els.freemius.hidden = !svc.checkoutUrl;
 		els.freemius.style.display = svc.checkoutUrl ? '' : 'none';
-		if (svc.checkoutUrl) { els.freemius.href = svc.checkoutUrl; }
+		if (svc.checkoutUrl) {
+			els.freemius.href = svc.checkoutUrl;
+			els.freemius.textContent = 'Оплатити через Freemius →';
+		}
 		els.msg.hidden = true;
 		els.body.hidden = false;
 
-		if (svc.state === 'blocked') {
+		if (svc.state === 'active' || svc.state === 'unlimited' || svc.state === 'expiring') {
 			els.body.hidden = true;
-			showMsg('Ваш доступ до цієї послуги заблоковано адміністратором. Зверніться до адміністрації сайту.');
-		} else if (svc.state === 'active' || svc.state === 'unlimited') {
+			showMsg('Ліцензія Freemius уже активна.', true);
+		} else if (!svc.checkoutUrl) {
 			els.body.hidden = true;
-			showMsg('У вас уже активний тариф.', true);
-		} else if (!svc.url && !svc.checkoutUrl) {
-			els.body.hidden = true;
-			showMsg('Для цієї послуги не налаштовано жодного способу оплати.');
+			showMsg('Для цієї послуги ще не налаштовано Freemius Checkout. Зверніться до адміністратора.');
 		}
-
 		modal.hidden = false;
 		document.body.classList.add('upb-lock');
 	}
