@@ -157,7 +157,7 @@ class UPB_Freemius {
 		$event = strtolower( (string) self::value( $data, 'type', self::value( $data, 'event.type', self::value( $data, 'action', $request->get_header( 'x-event' ) ) ) ) );
 
 		$active_events = array( 'license.created', 'license.activated', 'license.updated', 'license.extended', 'license.shortened', 'license.plan.changed', 'payment.dispute.won' );
-		$revoked_events = array( 'license.cancelled', 'license.deactivated', 'license.expired', 'license.deleted', 'payment.refund', 'payment.dispute.lost' );
+		$revoked_events = array( 'license.cancelled', 'license.canceled', 'license.deactivated', 'license.expired', 'license.deleted', 'payment.refund', 'payment.dispute.closed', 'payment.dispute.lost' );
 		if ( ! in_array( $event, $active_events, true ) && ! in_array( $event, $revoked_events, true ) ) {
 			return new WP_REST_Response( array( 'received' => true, 'ignored' => true, 'event' => $event ), 200 );
 		}
