@@ -72,7 +72,7 @@ if ( ! function_exists( 'upb_service_id' ) ) {
 if ( ! function_exists( 'upb_register_service' ) ) {
 	/**
 	 * Створює проект у Pay Box, якщо його ще немає (викликається іншим плагіном).
-	 * Посилання на Конверт і вартість адмін вказує в UA Pay Box → Послуги.
+	 * Дані Freemius для оплати адмін налаштовує в UA Pay Box → Послуги.
 	 */
 	function upb_register_service( $slug, $name, array $extra = array() ) {
 		return UPB_Services::register( $slug, $name, $extra );
@@ -89,7 +89,7 @@ if ( ! function_exists( 'upb_get_service' ) ) {
 if ( ! function_exists( 'upb_buy_button' ) ) {
 	/**
 	 * HTML кнопки «Купити PRO». Працює і на сайті, і в wp-admin.
-	 * Відкриває попап: копіювання логіна → перехід в Конверт → миттєва активація PRO.
+	 * Відкриває попап Freemius Checkout; PRO вмикається після підтвердженого webhook.
 	 */
 	function upb_buy_button( $service_id, $label = 'Купити PRO', $class = '' ) {
 		$service_id = upb_service_id( $service_id );
