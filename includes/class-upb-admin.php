@@ -401,7 +401,7 @@ class UPB_Admin {
 					</tr>
 					<tr>
 						<th>Видалення плагіна</th>
-						<td><label><input type="checkbox" name="opt[delete_data]" value="1" <?php checked( ! empty( $o['delete_data'] ) ); ?>> Видалити ВСІ дані (послуги, журнал, PRO-статуси) при видаленні плагіна</label></td>
+						<td><label><input type="checkbox" name="opt[delete_data]" value="1" <?php checked( ! empty( $o['delete_data'] ) ); ?>> Видалити ВСІ дані (послуги та ліцензії Freemius) при видаленні плагіна</label></td>
 					</tr>
 				</table>
 				<?php submit_button( 'Зберегти' ); ?>
