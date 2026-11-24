@@ -6,8 +6,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 class UPB_Ajax {
 
 	public static function init() {
-		add_action( 'wp_ajax_upb_activate', array( __CLASS__, 'activate' ) );
-		add_action( 'wp_ajax_nopriv_upb_activate', array( __CLASS__, 'guest' ) );
+// Legacy Privat/Monobank click-to-activate endpoints are intentionally disabled.
 	}
 
 	public static function guest() {
