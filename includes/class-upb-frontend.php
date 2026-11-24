@@ -53,8 +53,12 @@ class UPB_Frontend {
 
 		$uid   = get_current_user_id();
 		$st    = $uid ? UPB_Premium::state( $uid, $id ) : array( 'state' => 'guest', 'expires' => 0, 'days_left' => 0 );
-		$days  = (int) $svc['days'];
-		$term  = $days >= 9999 ? 'Безстроково' : UPB_Util::days_word( $days );
+		$term = 'За ліцензією Freemius';
+		if ( 'unlimited' === $st['state'] ) {
+			$term = 'Безстроково';
+		} elseif ( in_array( $st['state'], array( 'active', 'expiring' ), true ) && ! empty( $st['expires'] ) ) {
+			$term = 'до ' . UPB_Util::fmt_ts( $st['expires'] );
+		}
 
 		ob_start();
 		?>
@@ -77,10 +81,7 @@ class UPB_Frontend {
 				<div class="upb-desc"><?php echo nl2br( esc_html( $svc['description'] ) ); ?></div>
 			<?php endif; ?>
 
-			<?php if ( 'blocked' === $st['state'] ) : ?>
-				<div class="upb-status upb-status--blocked">⛔ Доступ заблоковано адміністратором. Зверніться до адміністрації сайту.</div>
-
-			<?php elseif ( 'unlimited' === $st['state'] ) : ?>
+			<?php if ( 'unlimited' === $st['state'] ) : ?>
 				<div class="upb-status upb-status--ok">✅ PRO активний — безстроково</div>
 
 			<?php elseif ( 'active' === $st['state'] ) : ?>
