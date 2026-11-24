@@ -10,8 +10,6 @@ class UPB_Admin {
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'assets' ) );
 		add_action( 'admin_post_upb_save_service', array( __CLASS__, 'save_service' ) );
 		add_action( 'admin_post_upb_delete_service', array( __CLASS__, 'delete_service' ) );
-		add_action( 'admin_post_upb_block', array( __CLASS__, 'block' ) );
-		add_action( 'admin_post_upb_unblock', array( __CLASS__, 'unblock' ) );
 		add_action( 'admin_post_upb_save_settings', array( __CLASS__, 'save_settings' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'missing_url_notice' ) );
 		add_filter( 'plugin_action_links_' . plugin_basename( UPB_FILE ), array( __CLASS__, 'action_links' ) );
@@ -99,155 +97,58 @@ class UPB_Admin {
 	public static function page_premiums() {
 		self::guard();
 		global $wpdb;
-		$table = UPB_Installer::table();
-		$per   = 50;
+		$table = $wpdb->prefix . 'upb_licenses';
+		$services = UPB_Services::all();
+		$per = 50;
 		$paged = isset( $_GET['paged'] ) ? max( 1, absint( $_GET['paged'] ) ) : 1;
-		$s     = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) : '';
-
+		$s = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) : '';
 		$where = '1=1';
+		$args = array();
 		if ( '' !== $s ) {
-			$ids   = get_users( array( 'search' => '*' . $s . '*', 'search_columns' => array( 'user_login', 'user_email', 'display_name' ), 'fields' => 'ID', 'number' => 500 ) );
-			$ids   = array_map( 'absint', $ids );
-			$like  = '%' . $wpdb->esc_like( $s ) . '%';
-			$where = $ids ? 'user_id IN (' . implode( ',', $ids ) . ')' : '1=0';
-			$where = '(' . $where . $wpdb->prepare( ' OR domain LIKE %s OR email LIKE %s', $like, $like ) . ')';
+			$like = '%' . $wpdb->esc_like( $s ) . '%';
+			$where = '(email LIKE %s OR license_id LIKE %s)';
+			$args = array( $like, $like );
 		}
-
-		$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table} WHERE {$where}" );
-		$rows  = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE {$where} ORDER BY clicked_at DESC, id DESC LIMIT %d OFFSET %d", $per, ( $paged - 1 ) * $per ) );
+		$count_sql = "SELECT COUNT(*) FROM {$table} WHERE {$where}";
+		$total = (int) ( $args ? $wpdb->get_var( $wpdb->prepare( $count_sql, $args ) ) : $wpdb->get_var( $count_sql ) );
+		$list_sql = "SELECT * FROM {$table} WHERE {$where} ORDER BY updated_at DESC, id DESC LIMIT %d OFFSET %d";
+		$list_args = array_merge( $args, array( $per, ( $paged - 1 ) * $per ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( $list_sql, $list_args ) );
 		$pages = (int) ceil( $total / $per );
-
-		$labels = array(
-			'active'    => array( 'Активний', 'upb-b-active' ),
-			'blocked'   => array( 'Заблоковано', 'upb-b-blocked' ),
-			'expired'   => array( 'Закінчився', 'upb-b-grey' ),
-			'renewed'   => array( 'Продовжено', 'upb-b-grey' ),
-			'unblocked' => array( 'Розблоковано', 'upb-b-grey' ),
-		);
 		?>
 		<div class="wrap upb-wrap">
-			<h1>Контроль Преміумів</h1>
+			<h1>Ліцензії Freemius</h1>
 			<?php self::notice(); ?>
-			<p>Нові кліки зверху. Перевірте надходження в Приват24 / Monobank: якщо коштів за логін немає — натисніть червону кнопку, і користувач одразу повернеться на FREE.</p>
-
+			<p>Це актуальні записи ліцензій, отримані від Freemius через підписані webhook-повідомлення. Доступ до PRO визначається лише чинним статусом ліцензії Freemius. Ручне блокування через Pay Box більше не використовується.</p>
 			<form method="get" class="upb-search">
 				<input type="hidden" name="page" value="upb-premiums">
-				<input type="search" name="s" value="<?php echo esc_attr( $s ); ?>" placeholder="Логін або email">
+				<input type="search" name="s" value="<?php echo esc_attr( $s ); ?>" placeholder="Email або ID ліцензії">
 				<button class="button">Пошук</button>
 				<?php if ( '' !== $s ) : ?><a class="button-link" href="<?php echo esc_url( self::url( 'upb-premiums' ) ); ?>">Скинути</a><?php endif; ?>
 			</form>
-
 			<table class="widefat striped upb-table">
-				<thead>
-					<tr>
-						<th>Дата кліку</th>
-						<th>Логін</th>
-						<th>Email</th>
-						<th>Домен</th>
-						<th>Послуга</th>
-						<th>Діє до</th>
-						<th>Статус</th>
-						<th>Дія</th>
-					</tr>
-				</thead>
+				<thead><tr><th>Оновлено</th><th>Послуга</th><th>Email покупця</th><th>ID ліцензії</th><th>Діє до</th><th>Статус Freemius</th></tr></thead>
 				<tbody>
-				<?php if ( ! $rows ) : ?>
-					<tr><td colspan="8">Записів поки немає.</td></tr>
-				<?php endif; ?>
+				<?php if ( ! $rows ) : ?><tr><td colspan="6">Ліцензій Freemius поки немає. Вони з’являться після надходження webhook від Freemius.</td></tr><?php endif; ?>
 				<?php foreach ( $rows as $r ) :
-					$u = get_userdata( (int) $r->user_id );
-					$l = isset( $labels[ $r->status ] ) ? $labels[ $r->status ] : array( $r->status, 'upb-b-grey' );
-					$is_remote = ! (int) $r->user_id && '' !== $r->domain;
-					$can_act   = $u || $is_remote;
-					?>
-					<tr>
-						<td><?php echo esc_html( UPB_Util::fmt_gmt( $r->clicked_at ) ); ?></td>
-						<td>
-							<?php if ( $u ) : ?>
-								<strong><a href="<?php echo esc_url( get_edit_user_link( $u->ID ) ); ?>"><?php echo esc_html( $u->user_login ); ?></a></strong>
-							<?php elseif ( $is_remote ) : ?>
-								<em>🌐 віддалений сайт</em>
-							<?php else : ?>
-								<em>(користувача видалено)</em>
-							<?php endif; ?>
-						</td>
-						<td><?php echo $u ? esc_html( $u->user_email ) : esc_html( $r->email ? $r->email : '—' ); ?></td>
-						<td><strong><?php echo esc_html( $r->domain ? $r->domain : '—' ); ?></strong></td>
-						<td><?php echo esc_html( $r->service_name ); ?> <span class="upb-id">ID <?php echo (int) $r->service_id; ?></span></td>
-						<td><?php echo (int) $r->expires_at ? esc_html( UPB_Util::fmt_ts( $r->expires_at ) ) : 'Безстроково'; ?></td>
-						<td><span class="upb-badge <?php echo esc_attr( $l[1] ); ?>"><?php echo esc_html( $l[0] ); ?></span></td>
-						<td>
-							<?php if ( $can_act && 'active' === $r->status ) : ?>
-								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('Вимкнути PRO і заблокувати цього користувача?');">
-									<input type="hidden" name="action" value="upb_block">
-									<input type="hidden" name="log_id" value="<?php echo (int) $r->id; ?>">
-									<?php wp_nonce_field( 'upb_block_' . (int) $r->id ); ?>
-									<button type="submit" class="upb-btn-block">❌ Відключити PRO / Заблокувати</button>
-								</form>
-							<?php elseif ( $can_act && 'blocked' === $r->status ) : ?>
-								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-									<input type="hidden" name="action" value="upb_unblock">
-									<input type="hidden" name="log_id" value="<?php echo (int) $r->id; ?>">
-									<?php wp_nonce_field( 'upb_unblock_' . (int) $r->id ); ?>
-									<button type="submit" class="upb-btn-unblock">✅ Розблокувати (повернути PRO)</button>
-								</form>
-							<?php else : ?>
-								—
-							<?php endif; ?>
-						</td>
-					</tr>
+					$sid = (int) $r->service_id;
+					$service_name = isset( $services[ $sid ]['name'] ) ? $services[ $sid ]['name'] : 'Послуга #' . $sid;
+					$status = 'active' === $r->status ? 'Активна' : ( 'revoked' === $r->status ? 'Скасована / відкликана' : esc_html( $r->status ) );
+				?>
+				<tr>
+					<td><?php echo esc_html( $r->updated_at ); ?></td>
+					<td><?php echo esc_html( $service_name ); ?> <span class="upb-id">ID <?php echo $sid; ?></span></td>
+					<td><?php echo esc_html( $r->email ? $r->email : '—' ); ?></td>
+					<td><code><?php echo esc_html( $r->license_id ); ?></code></td>
+					<td><?php echo (int) $r->expires ? esc_html( UPB_Util::fmt_ts( (int) $r->expires ) ) : 'Безстроково'; ?></td>
+					<td><?php echo esc_html( $status ); ?></td>
+				</tr>
 				<?php endforeach; ?>
 				</tbody>
 			</table>
-
-			<?php if ( $pages > 1 ) : ?>
-				<div class="tablenav"><div class="tablenav-pages">
-					<?php
-					echo wp_kses_post(
-						paginate_links(
-							array(
-								'base'      => add_query_arg( 'paged', '%#%' ),
-								'format'    => '',
-								'current'   => $paged,
-								'total'     => $pages,
-								'prev_text' => '«',
-								'next_text' => '»',
-							)
-						)
-					);
-					?>
-				</div></div>
-			<?php endif; ?>
+			<?php if ( $pages > 1 ) : ?><div class="tablenav"><div class="tablenav-pages"><?php echo wp_kses_post( paginate_links( array( 'base' => add_query_arg( 'paged', '%#%' ), 'format' => '', 'current' => $paged, 'total' => $pages, 'prev_text' => '«', 'next_text' => '»' ) ) ); ?></div></div><?php endif; ?>
 		</div>
 		<?php
-	}
-
-	public static function block() {
-		self::guard();
-		$log_id = isset( $_POST['log_id'] ) ? absint( $_POST['log_id'] ) : 0;
-		check_admin_referer( 'upb_block_' . $log_id );
-		global $wpdb;
-		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT user_id, service_id, domain FROM ' . UPB_Installer::table() . ' WHERE id=%d', $log_id ) );
-		if ( $row && (int) $row->user_id ) {
-			UPB_Premium::block( (int) $row->user_id, (int) $row->service_id );
-		} elseif ( $row && $row->domain ) {
-			UPB_Remote::block( (int) $row->service_id, $row->domain );
-		}
-		self::redirect_back( 'upb-premiums', 'blocked' );
-	}
-
-	public static function unblock() {
-		self::guard();
-		$log_id = isset( $_POST['log_id'] ) ? absint( $_POST['log_id'] ) : 0;
-		check_admin_referer( 'upb_unblock_' . $log_id );
-		global $wpdb;
-		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT user_id, service_id, domain FROM ' . UPB_Installer::table() . ' WHERE id=%d', $log_id ) );
-		if ( $row && (int) $row->user_id ) {
-			UPB_Premium::unblock( (int) $row->user_id, (int) $row->service_id );
-		} elseif ( $row && $row->domain ) {
-			UPB_Remote::unblock( (int) $row->service_id, $row->domain );
-		}
-		self::redirect_back( 'upb-premiums', 'unblocked' );
 	}
 
 	/* ================================================================== */
