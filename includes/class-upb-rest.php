@@ -74,7 +74,6 @@ class UPB_Rest {
 				'checkout_url' => $checkout,
 				'days' => (int) $svc['days'],
 				'lifetime' => ! empty( $svc['freemius_product_id'] ) && ! empty( $svc['freemius_plan_id'] ),
-				'id_mode' => $svc['id_mode'],
 			),
 			200
 		);
