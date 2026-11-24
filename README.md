@@ -1,58 +1,66 @@
-# UA Pay Box 1.3.3
+# UA Pay Box 1.3.9
 
-Платіжний центр для WordPress-проєктів та зовнішніх застосунків. Підтримує два незалежні способи оплати: PrivatBank/Monobank «Конверт» і Freemius Checkout. Freemius SDK не використовується.
+Платіжний центр для WordPress-плагінів, Android та Chrome. **Єдиний спосіб оплати й керування PRO — Freemius Checkout + підписані Freemius Webhooks.** Старий сценарій PrivatBank/Monobank «Конверт» та ручне блокування/розблокування більше не використовуються.
 
-## Способи оплати
+## Як працює оплата
 
-### 1. PrivatBank / Monobank «Конверт»
+1. Адміністратор налаштовує для кожної послуги Freemius Product ID, Plan ID та Product Secret Key.
+2. Користувач переходить за посиланням Freemius Checkout і завершує покупку на стороні Freemius.
+3. Freemius надсилає підписаний webhook на індивідуальний URL послуги.
+4. Pay Box перевіряє HMAC-SHA256 підпис, продукт, план і подію ліцензії.
+5. Ліцензія стає активною тільки після підтвердженої події Freemius. Скасування, видалення, деактивація, завершення, повернення коштів або програний спір відкликають доступ.
+6. Плагіни перевіряють ліцензію за email покупця або за ліцензійним ключем. Дані різних послуг ізольовані за Service ID.
 
-1. Створіть платіжний проєкт у **UA Pay Box → Послуги** та вкажіть посилання на Конверт.
-2. Користувач відкриває форму Pay Box, копіює ідентифікатор (логін або домен — залежить від налаштування проєкту) та переходить на сторінку Конверта.
-3. На сторінці Конверта користувач вказує цей логін/домен або email у полі коментаря/призначення платежу — за правилами вашого Конверта.
-4. **PRO активується одразу під час переходу до Конверта.** Адміністратор може перевірити надходження пізніше. Якщо оплати немає, у **Контроль Преміумів** натисніть «Відключити PRO / Заблокувати». Після надходження коштів доступ можна відновити кнопкою «Розблокувати».
+## Налаштування Freemius
 
-Важливо: це режим довіри з подальшою ручною перевіркою. Він навмисно не очікує підтвердження банку перед активацією.
+У **UA Pay Box → Послуги → Редагувати** заповніть:
 
-### 2. Freemius Checkout (без Freemius SDK)
+- **Freemius Product ID**;
+- **Freemius Plan ID**;
+- **Freemius Checkout URL** (можна залишити порожнім — URL буде сформовано з Product ID та Plan ID);
+- **Freemius API Bearer Token** — потрібен лише для синхронізації ціни;
+- **Freemius Product Secret Key** — потрібен для перевірки підпису webhook.
 
-Для кожної послуги можна окремо налаштувати:
+Після збереження скопіюйте **Freemius Webhook URL** і додайте його в Webhooks відповідного продукту Freemius. Увімкніть події:
 
-- **Freemius Product ID** — ID продукту у Freemius.
-- **Freemius Plan ID** — ID тарифного плану.
-- **Freemius Checkout URL** — посилання на hosted checkout саме цього продукту/плану.
-- **Freemius Product Secret Key** — секрет для перевірки підпису webhook. Зберігається тільки на сервері Pay Box і не потрапляє у згенерований клієнтський код.
+- `license.created`
+- `license.activated`
+- `license.updated`
+- `license.extended`
+- `license.shortened`
+- `license.plan.changed`
+- `license.cancelled`
+- `license.deactivated`
+- `license.expired`
+- `license.deleted`
+- `payment.refund`
+- `payment.dispute.lost`
 
-Після збереження Pay Box покаже **Freemius Webhook URL**. Додайте його в налаштування Webhooks відповідного продукту Freemius та увімкніть події ліцензій: створення, активацію, оновлення, деактивацію, скасування, видалення, завершення, продовження та скорочення терміну.
+Невідомі події ігноруються та не можуть самостійно активувати PRO. Для відкликання ліцензії Pay Box зберігає її статус у таблиці Freemius; сам ключ у відкритому вигляді не зберігається.
 
-Pay Box перевіряє заголовок `x-signature` як HMAC-SHA256 від необробленого тіла запиту з використанням Product Secret Key. Події ліцензій записуються до окремої таблиці. У базі зберігається HMAC-хеш ліцензійного ключа, а не сам ключ.
+## Перевірка ліцензій
 
-У налаштуваннях Freemius для продукту увімкніть показ License Keys покупцям (якщо він вимкнений). Після успішної покупки Freemius видає користувачу ліцензійний ключ. Згенерований Pay Box код перевіряє цей ключ на сервері:
+**UA Pay Box → Ліцензії Freemius** показує отримані ліцензії, email покупця, ID, термін дії та статус. Старі записи кліків/оплат через Конверт не керують доступом.
 
-`POST /wp-json/upb/v1/license/status` with form fields `service` and `license_key`
+Основний REST endpoint:
 
-Відповідь містить `valid`, `status` та `expires`. Для Chrome Extension endpoint підтримує CORS без cookies/авторизації; сам ліцензійний ключ є обліковим секретом користувача.
+`POST /wp-json/upb/v1/license/status`
 
-## Код інтеграції
+Поля форми:
+- `service` — slug або ID послуги;
+- `email` — email покупця Freemius; або
+- `license_key` — ключ Freemius.
 
-Відкрийте **UA Pay Box → Послуги → Редагувати**. Для Freemius налаштованого проєкту Pay Box генерує:
+Відповідь містить `valid`, `status`, `expires` та спосіб перевірки. Для зовнішніх клієнтів доступний згенерований код WordPress/PHP, Android/Kotlin і Chrome Extension/JavaScript.
 
-- **WordPress / PHP** — перевірка PRO через сервер Pay Box, кешування результату на 6 годин.
-- **Android / Kotlin** — перевірка ліцензійного ключа через HTTPS. Додайте `android.permission.INTERNET`; викликайте мережеву перевірку у фоновому потоці.
-- **Chrome Extension / JavaScript** — перевірка через REST. Додайте домен Pay Box до `host_permissions` у manifest.json.
+## Безпека
 
-У жоден з цих фрагментів не вставляйте Product Secret Key. Ліцензійний ключ користувач отримує у Freemius і вводить/зберігає у вашому продукті.
-
-Для старого сценарію Конверта також залишено попередні PHP та HTML/JavaScript фрагменти.
-
-## REST endpoints
-
-- `GET /wp-json/upb/v1/service?service=SLUG` — публічні параметри послуги.
-- `GET /wp-json/upb/v1/status?service=SLUG&domain=example.com` — статус PRO для доменного сценарію Конверта.
-- `POST /wp-json/upb/v1/activate` — миттєва активація для Конверта; адміністратор перевіряє оплату пізніше.
-- `POST /wp-json/upb/v1/freemius/webhook/SERVICE_ID` — підписаний webhook Freemius.
-- `POST /wp-json/upb/v1/license/status` with form fields `service` and `license_key` — перевірка Freemius-ліцензії.
-- `GET /wp-json/upb/v1/check` — попередній endpoint перевірки WordPress-користувачів за API key.
+- Product Secret Key зберігається тільки на сервері.
+- Webhook приймається лише з правильним HMAC-SHA256 підписом.
+- Ліцензії розділені за Service ID.
+- PRO не активується від натискання кнопки покупки, відкриття Checkout або повернення на сайт — потрібен webhook Freemius.
+- Відсутність зв’язку з Pay Box не повинна трактуватися клієнтським плагіном як активна ліцензія.
 
 ## Оновлення
 
-Плагін перевіряє GitHub Releases репозиторію [portallcomua/UA-Pay-Box](https://github.com/portallcomua/UA-Pay-Box). Реліз містить готовий ZIP-архів для оновлення через **Плагіни → Оновити**.
+Репозиторій: [portallcomua/UA-Pay-Box](https://github.com/portallcomua/UA-Pay-Box). Релізи містять ZIP для оновлення через адмінку WordPress.
