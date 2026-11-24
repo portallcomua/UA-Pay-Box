@@ -175,12 +175,15 @@ class UPB_Freemius {
 			return new WP_REST_Response( array( 'message' => 'License ID is missing from the Freemius event.' ), 400 );
 		}
 
+		$license_state = strtolower( (string) self::value( $license, 'status', '' ) );
 		$revoked = in_array( $event, $revoked_events, true )
 			|| ! empty( $license['is_cancelled'] )
 			|| ! empty( $license['is_deleted'] )
-			|| ! empty( $license['is_active'] ) && false === $license['is_active'];
+			|| ( array_key_exists( 'is_active', $license ) && false === (bool) $license['is_active'] )
+			|| in_array( $license_state, array( 'cancelled', 'canceled', 'expired', 'inactive', 'deleted', 'revoked' ), true );
 
-		$expires = self::timestamp( self::value( $license, 'expiration', self::value( $license, 'expiration_date', self::value( $license, 'expires_at', 0 ) ) ) );
+		$expires_value = self::value( $license, 'expiration', self::value( $license, 'expiration_date', self::value( $license, 'expires_at', null ) ) );
+		$expires = null === $expires_value ? 0 : self::timestamp( $expires_value );
 		if ( $expires && $expires <= time() ) {
 			$revoked = true;
 		}
@@ -197,9 +200,12 @@ class UPB_Freemius {
 
 		global $wpdb;
 		$table    = self::license_table();
-		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT id, email FROM {$table} WHERE service_id=%d AND license_id=%s", $service_id, $license_id ) );
+		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT id, email, expires FROM {$table} WHERE service_id=%d AND license_id=%s", $service_id, $license_id ) );
 		if ( '' === $email && $existing && ! empty( $existing->email ) ) {
 			$email = sanitize_email( $existing->email );
+		}
+		if ( null === $expires_value && $existing ) {
+			$expires = (int) $existing->expires;
 		}
 		if ( '' === $email ) {
 			return new WP_REST_Response( array( 'message' => 'Purchaser email is missing from the Freemius license event.' ), 400 );
