@@ -271,20 +271,9 @@ class UPB_Admin {
 					<?php else : ?>
 					<tr><th>Термін дії</th><td><strong>Керується Freemius</strong><p class="description">Для довічного плану Freemius поле днів не використовується.</p></td></tr>
 					<?php endif; ?>
-					<tr>
-						<th><label for="upb-msg">Повідомлення після активації</label></th>
-						<td><textarea id="upb-msg" name="svc[success_message]" rows="3" class="large-text"><?php echo esc_textarea( $v['success_message'] ); ?></textarea>
-						<p class="description">Можна використовувати {service} і {expires}. Дозволено простий HTML.</p></td>
-					</tr>
-					<tr>
-						<th><label for="upb-subj">Email: тема нагадування</label></th>
-						<td><input id="upb-subj" name="svc[email_subject]" type="text" class="large-text" value="<?php echo esc_attr( $v['email_subject'] ); ?>"></td>
-					</tr>
-					<tr>
-						<th><label for="upb-body">Email: текст нагадування</label></th>
-						<td><textarea id="upb-body" name="svc[email_body]" rows="7" class="large-text"><?php echo esc_textarea( $v['email_body'] ); ?></textarea>
-						<p class="description">Плейсхолдери: <code>{username}</code> <code>{service}</code> <code>{days}</code> <code>{expires}</code> <code>{site}</code>. Лист надходить один раз, коли до кінця тарифу лишається не більше N днів (див. «Налаштування»).</p></td>
-					</tr>
+					
+					
+					
 					
 					
 					<tr>
@@ -403,11 +392,7 @@ class UPB_Admin {
 					<tr>
 						<th><label for="upb-warn">Попереджати за (днів)</label></th>
 						<td><input id="upb-warn" type="number" min="1" max="60" name="opt[warn_days]" value="<?php echo (int) $o['warn_days']; ?>">
-						<p class="description">Жовте попередження в картці та лист-нагадування за стільки днів до кінця тарифу.</p></td>
-					</tr>
-					<tr>
-						<th>Лист адміну</th>
-						<td><label><input type="checkbox" name="opt[notify_admin]" value="1" <?php checked( ! empty( $o['notify_admin'] ) ); ?>> Надсилати мені лист при кожній активації (щоб перевірити оплату)</label></td>
+						<p class="description">Показувати попередження в картці Pay Box перед завершенням ліцензії.</p></td>
 					</tr>
 					<tr>
 						<th>Скрипти на всіх сторінках</th>
