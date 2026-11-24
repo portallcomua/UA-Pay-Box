@@ -25,7 +25,6 @@ class UPB_Rest {
 	public static function routes() {
 		register_rest_route( 'upb/v1', '/service', array( 'methods' => 'GET', 'permission_callback' => '__return_true', 'callback' => array( __CLASS__, 'service' ) ) );
 		register_rest_route( 'upb/v1', '/status', array( 'methods' => 'GET', 'permission_callback' => '__return_true', 'callback' => array( __CLASS__, 'status' ) ) );
-		register_rest_route( 'upb/v1', '/activate', array( 'methods' => 'POST', 'permission_callback' => '__return_true', 'callback' => array( __CLASS__, 'activate' ) ) );
 		register_rest_route(
 			'upb/v1',
 			'/check',
@@ -71,7 +70,7 @@ class UPB_Rest {
 				'currency' => $pricing['currency'],
 				'exchange_rate' => (float) $pricing['exchange_rate'],
 				'price_updated' => (int) $pricing['updated_at'],
-				'url' => $checkout ? $checkout : $svc['url'],
+				'url' => $checkout,
 				'checkout_url' => $checkout,
 				'days' => (int) $svc['days'],
 				'lifetime' => ! empty( $svc['freemius_product_id'] ) && ! empty( $svc['freemius_plan_id'] ),
@@ -83,22 +82,21 @@ class UPB_Rest {
 
 	/** GET status — стан PRO домену. */
 	public static function status( WP_REST_Request $req ) {
-		$svc    = self::svc_by_param( $req );
-		$domain = UPB_Util::clean_domain( $req->get_param( 'domain' ) );
-		if ( ! $svc || ! $domain ) {
-			return new WP_REST_Response( array( 'message' => 'Невірний проект або домен.' ), 400 );
+		$svc = self::svc_by_param( $req );
+		$email = sanitize_email( (string) $req->get_param( 'email' ) );
+		if ( ! $svc || ! is_email( $email ) ) {
+			return new WP_REST_Response( array( 'state' => 'free', 'premium' => false, 'message' => 'Valid purchaser email is required.' ), 200 );
 		}
-		$st = UPB_Remote::state( (int) $svc['id'], $domain );
-		return new WP_REST_Response(
-			array(
-				'state'     => $st['state'],
-				'premium'   => in_array( $st['state'], array( 'active', 'expiring', 'unlimited' ), true ),
-				'expires'   => (int) $st['expires'],
-				'days_left' => (int) $st['days_left'],
-				'url'       => $svc['url'],
-			),
-			200
-		);
+		$license = UPB_Freemius::get_email_license( (int) $svc['id'], $email );
+		$expires = $license ? (int) $license->expires : 0;
+		$days_left = $expires ? (int) ceil( ( $expires - time() ) / DAY_IN_SECONDS ) : 0;
+		return new WP_REST_Response( array(
+			'state' => $license ? ( $expires ? 'active' : 'unlimited' ) : 'free',
+			'premium' => (bool) $license,
+			'expires' => $expires,
+			'days_left' => $days_left,
+			'checkout_url' => UPB_Freemius::checkout_url( $svc ),
+		), 200 );
 	}
 
 	/** POST activate — миттєва активація PRO для домену (оплату перевіряє адмін). */
