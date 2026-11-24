@@ -156,6 +156,12 @@ class UPB_Freemius {
 
 		$event = strtolower( (string) self::value( $data, 'type', self::value( $data, 'event.type', self::value( $data, 'action', $request->get_header( 'x-event' ) ) ) ) );
 
+		$active_events = array( 'license.created', 'license.activated', 'license.updated', 'license.extended', 'license.shortened', 'license.plan.changed' );
+		$revoked_events = array( 'license.cancelled', 'license.deactivated', 'license.expired', 'license.deleted', 'payment.refund', 'payment.dispute.lost' );
+		if ( ! in_array( $event, $active_events, true ) && ! in_array( $event, $revoked_events, true ) ) {
+			return new WP_REST_Response( array( 'received' => true, 'ignored' => true, 'event' => $event ), 200 );
+		}
+
 		$license_id = (string) self::value(
 			$license,
 			'id',
@@ -169,16 +175,10 @@ class UPB_Freemius {
 			return new WP_REST_Response( array( 'message' => 'License ID is missing from the Freemius event.' ), 400 );
 		}
 
-		$revoked = (
-			false !== strpos( $event, 'cancel' ) ||
-			false !== strpos( $event, 'delete' ) ||
-			false !== strpos( $event, 'expir' ) ||
-			false !== strpos( $event, 'refund' ) ||
-			false !== strpos( $event, 'deactiv' ) ||
-			false !== strpos( $event, 'dispute.lost' ) ||
-			! empty( $license['is_cancelled'] ) ||
-			! empty( $license['is_deleted'] )
-		);
+		$revoked = in_array( $event, $revoked_events, true )
+			|| ! empty( $license['is_cancelled'] )
+			|| ! empty( $license['is_deleted'] )
+			|| ! empty( $license['is_active'] ) && false === $license['is_active'];
 
 		$expires = self::timestamp( self::value( $license, 'expiration', self::value( $license, 'expiration_date', self::value( $license, 'expires_at', 0 ) ) ) );
 		if ( $expires && $expires <= time() ) {
@@ -197,7 +197,13 @@ class UPB_Freemius {
 
 		global $wpdb;
 		$table    = self::license_table();
-		$existing = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$table} WHERE service_id=%d AND license_id=%s", $service_id, $license_id ) );
+		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT id, email FROM {$table} WHERE service_id=%d AND license_id=%s", $service_id, $license_id ) );
+		if ( '' === $email && $existing && ! empty( $existing->email ) ) {
+			$email = sanitize_email( $existing->email );
+		}
+		if ( '' === $email ) {
+			return new WP_REST_Response( array( 'message' => 'Purchaser email is missing from the Freemius license event.' ), 400 );
+		}
 
 		$record = array(
 			'service_id' => $service_id,
@@ -215,7 +221,7 @@ class UPB_Freemius {
 		}
 
 		if ( $existing ) {
-			$wpdb->update( $table, $record, array( 'id' => (int) $existing ) );
+			$wpdb->update( $table, $record, array( 'id' => (int) $existing->id ) );
 		} else {
 			$record['created_at'] = current_time( 'mysql', true );
 			$wpdb->insert( $table, $record );
@@ -230,6 +236,24 @@ class UPB_Freemius {
 			),
 			200
 		);
+	}
+
+	/** Return the newest currently valid license for a purchaser email and service. */
+	public static function get_email_license( $service_id, $email ) {
+		global $wpdb;
+		$email = sanitize_email( (string) $email );
+		if ( ! $service_id || ! is_email( $email ) ) {
+			return null;
+		}
+		$table = self::license_table();
+		return $wpdb->get_row( $wpdb->prepare(
+			"SELECT status, expires FROM {$table} WHERE service_id=%d AND LOWER(email)=LOWER(%s) AND status='active' AND (expires=0 OR expires>%d) ORDER BY updated_at DESC, id DESC LIMIT 1",
+			(int) $service_id, $email, time()
+		) );
+	}
+
+	public static function is_email_active( $service_id, $email ) {
+		return (bool) self::get_email_license( $service_id, $email );
 	}
 
 	/**
@@ -249,12 +273,7 @@ class UPB_Freemius {
 		$table = self::license_table();
 
 		if ( $email && is_email( $email ) ) {
-			$row = $wpdb->get_row( $wpdb->prepare(
-				"SELECT status, expires FROM {$table} WHERE service_id=%d AND LOWER(email)=LOWER(%s) AND status='active' AND (expires=0 OR expires>%d) ORDER BY updated_at DESC, id DESC LIMIT 1",
-				$service_id,
-				$email,
-				time()
-			) );
+			$row = self::get_email_license( $service_id, $email );
 			$valid = (bool) $row;
 			return new WP_REST_Response( array(
 				'valid'   => (bool) $valid,
