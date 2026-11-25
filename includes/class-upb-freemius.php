@@ -65,6 +65,37 @@ class UPB_Freemius {
 		return 0;
 	}
 
+	/**
+	 * Read the canonical Freemius license environment.
+	 * Freemius uses 0 for production and 1 for Sandbox.
+	 */
+	private static function license_environment( $service_id, $license_id ) {
+		$service = UPB_Services::get( (int) $service_id );
+		if ( ! $service || empty( $service['freemius_product_id'] ) || empty( $service['freemius_api_token'] ) ) {
+			return null;
+		}
+		$url = sprintf(
+			'https://api.freemius.com/v1/products/%s/licenses/%s.json',
+			rawurlencode( $service['freemius_product_id'] ),
+			rawurlencode( $license_id )
+		);
+		$response = wp_remote_get( $url, array(
+			'timeout' => 12,
+			'headers' => array(
+				'Accept' => 'application/json',
+				'Authorization' => 'Bearer ' . trim( $service['freemius_api_token'] ),
+			),
+		) );
+		if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
+			return null;
+		}
+		$data = json_decode( wp_remote_retrieve_body( $response ), true );
+		if ( ! is_array( $data ) || ! array_key_exists( 'environment', $data ) ) {
+			return null;
+		}
+		return (int) $data['environment'];
+	}
+
 	/** Signed webhook endpoint. Product Secret Key is never sent to client apps. */
 	public static function webhook( WP_REST_Request $request ) {
 		$service_id = absint( $request['service_id'] );
@@ -175,6 +206,15 @@ class UPB_Freemius {
 			return new WP_REST_Response( array( 'message' => 'License ID is missing from the Freemius event.' ), 400 );
 		}
 
+		// Never grant PRO for Freemius Sandbox purchases. The API is authoritative;
+		// the signed webhook environment is used only when it is explicitly present.
+		$environment = array_key_exists( 'environment', $license )
+			? (int) $license['environment']
+			: self::license_environment( $service_id, $license_id );
+		if ( null === $environment || ! in_array( $environment, array( 0, 1 ), true ) ) {
+			return new WP_REST_Response( array( 'message' => 'Could not verify Freemius license environment; event was not activated.' ), 503 );
+		}
+
 		$license_state = strtolower( (string) self::value( $license, 'status', '' ) );
 		$revoked = in_array( $event, $revoked_events, true )
 			|| ! empty( $license['is_cancelled'] )
@@ -196,11 +236,11 @@ class UPB_Freemius {
 				self::value( $data, 'user.email', self::value( $event_data, 'email', self::value( $license, 'email', '' ) ) )
 			)
 		);
-		$status = $revoked ? 'revoked' : 'active';
+		$status = $revoked ? 'revoked' : ( 1 === $environment ? 'sandbox' : 'active' );
 
 		global $wpdb;
 		$table    = self::license_table();
-		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT id, email, expires FROM {$table} WHERE service_id=%d AND license_id=%s", $service_id, $license_id ) );
+		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT id, email, expires, environment FROM {$table} WHERE service_id=%d AND license_id=%s", $service_id, $license_id ) );
 		if ( '' === $email && $existing && ! empty( $existing->email ) ) {
 			$email = sanitize_email( $existing->email );
 		}
@@ -216,6 +256,7 @@ class UPB_Freemius {
 			'license_id' => sanitize_text_field( $license_id ),
 			'email'      => $email,
 			'status'     => $status,
+			'environment'=> $environment,
 			'expires'    => $expires,
 			'updated_at' => current_time( 'mysql', true ),
 		);
@@ -252,10 +293,30 @@ class UPB_Freemius {
 			return null;
 		}
 		$table = self::license_table();
-		return $wpdb->get_row( $wpdb->prepare(
-			"SELECT status, expires FROM {$table} WHERE service_id=%d AND LOWER(email)=LOWER(%s) AND status='active' AND (expires=0 OR expires>%d) ORDER BY updated_at DESC, id DESC LIMIT 1",
+		$row = $wpdb->get_row( $wpdb->prepare(
+			"SELECT id, license_id, status, expires, environment FROM {$table} WHERE service_id=%d AND LOWER(email)=LOWER(%s) AND status='active' AND (expires=0 OR expires>%d) ORDER BY updated_at DESC, id DESC LIMIT 1",
 			(int) $service_id, $email, time()
 		) );
+		if ( ! $row ) {
+			return null;
+		}
+
+		$environment = isset( $row->environment ) ? (int) $row->environment : -1;
+		if ( -1 === $environment ) {
+			$environment = self::license_environment( $service_id, $row->license_id );
+			if ( null === $environment || ! in_array( $environment, array( 0, 1 ), true ) ) {
+				return null; // fail closed until Freemius confirms production environment.
+			}
+			$wpdb->update( $table, array(
+				'environment' => $environment,
+				'status' => 1 === $environment ? 'sandbox' : 'active',
+			), array( 'id' => (int) $row->id ) );
+		}
+		if ( 1 === $environment ) {
+			return null;
+		}
+		$row->environment = 0;
+		return $row;
 	}
 
 	public static function is_email_active( $service_id, $email ) {
@@ -286,6 +347,7 @@ class UPB_Freemius {
 				'status'  => $row ? $row->status : 'not_found',
 				'expires' => $row && (int) $row->expires ? (int) $row->expires : 0,
 				'method'  => 'email',
+				'environment' => $row ? 0 : null,
 			), 200 );
 		}
 
