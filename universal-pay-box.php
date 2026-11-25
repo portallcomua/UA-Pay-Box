@@ -3,7 +3,7 @@
  * Plugin Name: UA Pay Box
  * Plugin URI:  https://uaserver.pp.ua
  * Description: Платіжний центр для WordPress, Android і Chrome з оплатою та керуванням PRO через Freemius Checkout і підписані webhooks.
- * Version:     1.3.10
+ * Version:     1.3.11
  * Author:      UAServer
  * Author URI:  https://uaserver.pp.ua
  * License:     GPLv2 or later
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'UPB_VERSION', '1.3.10' );
+define( 'UPB_VERSION', '1.3.11' );
 define( 'UPB_GITHUB', 'portallcomua/UA-Pay-Box' );
 define( 'UPB_FILE', __FILE__ );
 define( 'UPB_DIR', plugin_dir_path( __FILE__ ) );
