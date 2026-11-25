@@ -5,7 +5,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class UPB_Installer {
 
-	const DB_VERSION = '4';
+	const DB_VERSION = '5';
 
 	public static function activate() {
 		self::create_table();
@@ -61,6 +61,7 @@ class UPB_Installer {
 			license_hash CHAR(64) NOT NULL DEFAULT '',
 			email VARCHAR(191) NOT NULL DEFAULT '',
 			status VARCHAR(20) NOT NULL DEFAULT 'active',
+			environment TINYINT NOT NULL DEFAULT -1,
 			expires BIGINT(20) NOT NULL DEFAULT 0,
 			created_at DATETIME NOT NULL,
 			updated_at DATETIME NOT NULL,
